@@ -22,6 +22,7 @@ A production-grade HRM (Human Resource Management) system with advanced User Man
 - **Database**: MySQL
 - **Authentication**: JWT (Access + Refresh Token)
 - **Security**: OWASP best practices
+- **API Testing**: Swagger Added
 
 ## Project Structure
 
