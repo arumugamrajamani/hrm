@@ -281,18 +281,41 @@ router.post('/reset-password', passwordResetLimiter, resetPasswordValidation, au
  *           schema:
  *             type: object
  *             required:
- *               - current_password
- *               - new_password
+ *               - currentPassword
+ *               - newPassword
  *             properties:
- *               current_password:
+ *               currentPassword:
  *                 type: string
  *                 example: "CurrentPassword123!"
- *               new_password:
+ *               newPassword:
  *                 type: string
  *                 example: "NewPassword123!"
  *     responses:
  *       200:
  *         description: Password changed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Password changed successfully"
+ *       400:
+ *         description: Validation error or current password incorrect
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post('/change-password', authMiddleware, changePasswordValidation, authController.changePassword);
 

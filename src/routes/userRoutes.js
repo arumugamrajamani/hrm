@@ -19,7 +19,7 @@ router.use(authMiddleware);
  * /api/users:
  *   get:
  *     summary: Get all users
- *     description: Retrieve a paginated list of users. Requires authentication.
+ *     description: Retrieve a paginated list of users. Supports search by username, email, or mobile. Requires authentication.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -40,7 +40,14 @@ router.use(authMiddleware);
  *         name: search
  *         schema:
  *           type: string
- *         description: Search term for filtering users
+ *         description: Search by username, email, or mobile number
+ *         example: "john"
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive]
+ *         description: Filter by user status
  *     responses:
  *       200:
  *         description: List of users retrieved successfully

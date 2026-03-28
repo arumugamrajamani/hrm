@@ -54,7 +54,7 @@ class UserModel {
             SELECT 
                 u.id, u.username, u.email, u.mobile, u.status, 
                 u.profile_photo, u.two_factor_enabled, u.password_changed_at,
-                u.created_at, u.updated_at,
+                u.password, u.created_at, u.updated_at,
                 r.id as role_id, r.name as role_name
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
