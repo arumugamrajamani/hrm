@@ -1,5 +1,19 @@
 const { pool } = require('../config/database');
 const { parseJSON } = require('../utils/helpers');
+const config = require('../config');
+
+const transformUserWithProfileUrl = (user) => {
+    if (!user) return null;
+    const transformed = { ...user };
+    if (transformed.profile_photo) {
+        transformed.profile_photo = `${config.API_URL}${transformed.profile_photo}`;
+    }
+    return transformed;
+};
+
+const transformUsersWithProfileUrl = (users) => {
+    return users.map(transformUserWithProfileUrl);
+};
 
 class UserModel {
     static async findAll({ page = 1, limit = 10, search = '', status = '' }) {
@@ -41,7 +55,7 @@ class UserModel {
         const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
 
         return {
-            users: rows,
+            users: transformUsersWithProfileUrl(rows),
             total: countResult[0].total,
             page,
             limit,
@@ -61,7 +75,7 @@ class UserModel {
             WHERE u.id = ? AND u.status != 'deleted'
         `;
         const [rows] = await pool.query(query, [id]);
-        return rows[0] || null;
+        return transformUserWithProfileUrl(rows[0] || null);
     }
 
     static async findByEmail(email) {
@@ -73,7 +87,7 @@ class UserModel {
             WHERE u.email = ? AND u.status != 'deleted'
         `;
         const [rows] = await pool.query(query, [email]);
-        return rows[0] || null;
+        return transformUserWithProfileUrl(rows[0] || null);
     }
 
     static async findByUsername(username) {
@@ -85,18 +99,18 @@ class UserModel {
             WHERE u.username = ? AND u.status != 'deleted'
         `;
         const [rows] = await pool.query(query, [username]);
-        return rows[0] || null;
+        return transformUserWithProfileUrl(rows[0] || null);
     }
 
     static async create(userData) {
-        const { username, email, mobile, password, role_id, status = 'active' } = userData;
+        const { username, email, mobile, password, role_id, status = 'active', profile_photo } = userData;
         
         const query = `
-            INSERT INTO users (username, email, mobile, password, role_id, status, password_changed_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO users (username, email, mobile, password, role_id, status, profile_photo, password_changed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         `;
         
-        const [result] = await pool.query(query, [username, email, mobile, password, role_id, status]);
+        const [result] = await pool.query(query, [username, email, mobile, password, role_id, status, profile_photo || null]);
         return result.insertId;
     }
 

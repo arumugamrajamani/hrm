@@ -11,6 +11,7 @@ const {
     paginationValidation
 } = require('../middlewares/validator');
 const { generalLimiter } = require('../middlewares/rateLimiter');
+const upload = require('../config/upload');
 
 router.use(authMiddleware);
 
@@ -174,14 +175,14 @@ router.get('/:id', idValidation, userController.getUserById);
  * /api/users:
  *   post:
  *     summary: Create a new user (Admin only)
- *     description: Create a new user account. This endpoint requires admin privileges.
+ *     description: Create a new user account. This endpoint requires admin privileges. Supports multipart form data for profile photo upload.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -207,6 +208,10 @@ router.get('/:id', idValidation, userController.getUserById);
  *               role_id:
  *                 type: integer
  *                 example: 1
+ *               profile_photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile photo image (jpeg, jpg, png, gif, webp) max 5MB
  *     responses:
  *       201:
  *         description: User created successfully
@@ -231,7 +236,7 @@ router.get('/:id', idValidation, userController.getUserById);
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.post('/', isAdmin, createUserValidation, userController.createUser);
+router.post('/', isAdmin, upload.single('profile_photo'), userController.createUser);
 
 /**
  * @swagger
@@ -284,7 +289,7 @@ router.post('/with-email', isAdmin, createUserWithEmailValidation, userControlle
  * /api/users/{id}:
  *   put:
  *     summary: Update user (Admin only)
- *     description: Update an existing user. This endpoint requires admin privileges.
+ *     description: Update an existing user. This endpoint requires admin privileges. Supports multipart form data for profile photo upload.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -298,7 +303,7 @@ router.post('/with-email', isAdmin, createUserWithEmailValidation, userControlle
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -319,6 +324,10 @@ router.post('/with-email', isAdmin, createUserWithEmailValidation, userControlle
  *                 type: string
  *                 enum: [active, inactive]
  *                 example: active
+ *               profile_photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile photo image (jpeg, jpg, png, gif, webp) max 5MB
  *     responses:
  *       200:
  *         description: User updated successfully
@@ -331,7 +340,7 @@ router.post('/with-email', isAdmin, createUserWithEmailValidation, userControlle
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.put('/:id', isAdmin, updateUserValidation, userController.updateUser);
+router.put('/:id', isAdmin, upload.single('profile_photo'), userController.updateUser);
 
 /**
  * @swagger

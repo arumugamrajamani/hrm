@@ -45,12 +45,18 @@ class UserController {
         try {
             const { username, email, mobile, password, role_id } = req.body;
             
+            let profile_photo = null;
+            if (req.file) {
+                profile_photo = `/uploads/${req.file.filename}`;
+            }
+
             const result = await userService.createUser({
                 username,
                 email,
                 mobile,
                 password,
-                role_id
+                role_id,
+                profile_photo
             });
 
             return successResponse(res, result, 'User created successfully', 201);
@@ -80,6 +86,10 @@ class UserController {
         try {
             const { id } = req.params;
             const updateData = req.body;
+
+            if (req.file) {
+                updateData.profile_photo = `/uploads/${req.file.filename}`;
+            }
             
             const result = await userService.updateUser(parseInt(id), updateData);
 

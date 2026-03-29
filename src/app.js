@@ -36,11 +36,13 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '20mb' }));
 
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.use(morgan('combined'));
+
+app.use('/uploads', express.static('uploads'));
 
 app.get('/health', (req, res) => {
     res.status(200).json({

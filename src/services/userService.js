@@ -45,7 +45,8 @@ class UserService {
             email,
             mobile,
             password: passwordHash,
-            role_id
+            role_id,
+            profile_photo: userData.profile_photo
         });
 
         return { userId, message: 'User created successfully' };
