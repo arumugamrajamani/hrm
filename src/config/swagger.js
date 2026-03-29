@@ -86,6 +86,43 @@ const options = {
                         },
                     },
                 },
+                Department: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'integer', example: 1 },
+                        department_name: { type: 'string', example: 'Engineering' },
+                        department_code: { type: 'string', example: 'ENG' },
+                        parent_department_id: { type: 'integer', nullable: true, example: null },
+                        description: { type: 'string', nullable: true, example: 'Software Engineering and Development' },
+                        status: { type: 'string', enum: ['active', 'inactive'], example: 'active' },
+                        created_by: { type: 'integer', nullable: true, example: 1 },
+                        updated_by: { type: 'integer', nullable: true, example: 1 },
+                        created_at: { type: 'string', format: 'date-time', example: '2026-03-29T10:00:00.000Z' },
+                        updated_at: { type: 'string', format: 'date-time', example: '2026-03-29T10:00:00.000Z' },
+                        created_by_username: { type: 'string', nullable: true, example: 'superadmin' },
+                        updated_by_username: { type: 'string', nullable: true, example: 'admin' },
+                        parent_id: { type: 'integer', nullable: true, example: null },
+                        parent_department_name: { type: 'string', nullable: true, example: null },
+                        parent_department_code: { type: 'string', nullable: true, example: null },
+                    },
+                },
+                DepartmentHierarchy: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'integer', example: 1 },
+                        department_name: { type: 'string', example: 'Engineering' },
+                        department_code: { type: 'string', example: 'ENG' },
+                        parent_department_id: { type: 'integer', nullable: true, example: null },
+                        description: { type: 'string', nullable: true, example: 'Software Engineering and Development' },
+                        status: { type: 'string', enum: ['active', 'inactive'], example: 'active' },
+                        level: { type: 'integer', example: 1 },
+                        path: { type: 'string', example: '1' },
+                        children: { 
+                            type: 'array',
+                            items: { $ref: '#/components/schemas/DepartmentHierarchy' }
+                        },
+                    },
+                },
             },
         },
         security: []

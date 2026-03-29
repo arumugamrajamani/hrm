@@ -7,6 +7,7 @@ const config = require('./config');
 const swaggerSpec = require('./config/swagger');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const departmentRoutes = require('./routes/departmentRoutes');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const { generalLimiter } = require('./middlewares/rateLimiter');
 
@@ -70,6 +71,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.use('/api/auth', generalLimiter, authRoutes);
 
 app.use('/api/users', userRoutes);
+
+app.use('/api/departments', departmentRoutes);
 
 app.use(notFoundHandler);
 

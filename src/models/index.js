@@ -412,11 +412,291 @@ class RefreshTokenModel {
     }
 }
 
+class DepartmentModel {
+    static async findAll({ page = 1, limit = 10, search = '', status = '', includeHierarchy = false }) {
+        const offset = (page - 1) * limit;
+        let whereClause = "WHERE 1=1";
+        const params = [];
+
+        if (search) {
+            whereClause += " AND (d.department_name LIKE ? OR d.department_code LIKE ? OR d.description LIKE ?)";
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        if (status) {
+            whereClause += " AND d.status = ?";
+            params.push(status);
+        }
+
+        let dataQuery;
+        if (includeHierarchy) {
+            dataQuery = `
+                SELECT 
+                    d.*,
+                    pd.id as parent_id,
+                    pd.department_name as parent_department_name,
+                    pd.department_code as parent_department_code,
+                    cu.username as created_by_username,
+                    uu.username as updated_by_username
+                FROM departments d
+                LEFT JOIN departments pd ON d.parent_department_id = pd.id
+                LEFT JOIN users cu ON d.created_by = cu.id
+                LEFT JOIN users uu ON d.updated_by = uu.id
+                ${whereClause}
+                ORDER BY d.department_name ASC
+                LIMIT ? OFFSET ?
+            `;
+        } else {
+            dataQuery = `
+                SELECT 
+                    d.*,
+                    cu.username as created_by_username,
+                    uu.username as updated_by_username
+                FROM departments d
+                LEFT JOIN users cu ON d.created_by = cu.id
+                LEFT JOIN users uu ON d.updated_by = uu.id
+                ${whereClause}
+                ORDER BY d.department_name ASC
+                LIMIT ? OFFSET ?
+            `;
+        }
+
+        const countQuery = `
+            SELECT COUNT(*) as total 
+            FROM departments d
+            ${whereClause}
+        `;
+
+        const [countResult] = await pool.query(countQuery, params);
+        const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
+
+        return {
+            departments: rows,
+            total: countResult[0].total,
+            page,
+            limit,
+            totalPages: Math.ceil(countResult[0].total / limit)
+        };
+    }
+
+    static async findById(id, includeHierarchy = false) {
+        let query;
+        if (includeHierarchy) {
+            query = `
+                SELECT 
+                    d.*,
+                    pd.id as parent_id,
+                    pd.department_name as parent_department_name,
+                    pd.department_code as parent_department_code,
+                    cu.username as created_by_username,
+                    uu.username as updated_by_username
+                FROM departments d
+                LEFT JOIN departments pd ON d.parent_department_id = pd.id
+                LEFT JOIN users cu ON d.created_by = cu.id
+                LEFT JOIN users uu ON d.updated_by = uu.id
+                WHERE d.id = ?
+            `;
+        } else {
+            query = `
+                SELECT 
+                    d.*,
+                    cu.username as created_by_username,
+                    uu.username as updated_by_username
+                FROM departments d
+                LEFT JOIN users cu ON d.created_by = cu.id
+                LEFT JOIN users uu ON d.updated_by = uu.id
+                WHERE d.id = ?
+            `;
+        }
+        
+        const [rows] = await pool.query(query, [id]);
+        return rows[0] || null;
+    }
+
+    static async findByName(departmentName, excludeId = null) {
+        let query = 'SELECT * FROM departments WHERE department_name = ?';
+        const params = [departmentName];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async findByCode(departmentCode, excludeId = null) {
+        let query = 'SELECT * FROM departments WHERE department_code = ?';
+        const params = [departmentCode];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async findByParentId(parentId) {
+        const query = 'SELECT * FROM departments WHERE parent_department_id = ? ORDER BY department_name ASC';
+        const [rows] = await pool.query(query, [parentId]);
+        return rows;
+    }
+
+    static async getHierarchyTree() {
+        const query = `
+            WITH RECURSIVE department_tree AS (
+                SELECT 
+                    id, 
+                    department_name, 
+                    department_code, 
+                    parent_department_id,
+                    description,
+                    status,
+                    1 as level,
+                    CAST(id AS CHAR(1000)) as path
+                FROM departments 
+                WHERE parent_department_id IS NULL
+                
+                UNION ALL
+                
+                SELECT 
+                    d.id, 
+                    d.department_name, 
+                    d.department_code, 
+                    d.parent_department_id,
+                    d.description,
+                    d.status,
+                    dt.level + 1,
+                    CONCAT(dt.path, ',', d.id)
+                FROM departments d
+                INNER JOIN department_tree dt ON d.parent_department_id = dt.id
+            )
+            SELECT * FROM department_tree ORDER BY path ASC
+        `;
+        
+        const [rows] = await pool.query(query);
+        return rows;
+    }
+
+    static async getAllChildren(parentId) {
+        const query = `
+            WITH RECURSIVE child_departments AS (
+                SELECT id FROM departments WHERE parent_department_id = ?
+                UNION ALL
+                SELECT d.id FROM departments d
+                INNER JOIN child_departments cd ON d.parent_department_id = cd.id
+            )
+            SELECT id FROM child_departments
+        `;
+        
+        const [rows] = await pool.query(query, [parentId]);
+        return rows.map(row => row.id);
+    }
+
+    static async create(departmentData) {
+        const { department_name, department_code, parent_department_id, description, status = 'active', created_by } = departmentData;
+        
+        const query = `
+            INSERT INTO departments (department_name, department_code, parent_department_id, description, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        `;
+        
+        const [result] = await pool.query(query, [department_name, department_code, parent_department_id || null, description || null, status, created_by || null]);
+        return result.insertId;
+    }
+
+    static async update(id, departmentData) {
+        const allowedFields = ['department_name', 'department_code', 'parent_department_id', 'description', 'status', 'updated_by'];
+        const updates = [];
+        const params = [];
+
+        for (const field of allowedFields) {
+            if (departmentData[field] !== undefined) {
+                updates.push(`${field} = ?`);
+                if (field === 'parent_department_id' && departmentData[field] === null) {
+                    params.push(null);
+                } else {
+                    params.push(departmentData[field]);
+                }
+            }
+        }
+
+        if (updates.length === 0) return false;
+
+        params.push(id);
+        const query = `UPDATE departments SET ${updates.join(', ')}, updated_at = NOW() WHERE id = ?`;
+        
+        const [result] = await pool.query(query, params);
+        return result.affectedRows > 0;
+    }
+
+    static async softDelete(id) {
+        const query = `UPDATE departments SET status = 'inactive', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async activate(id) {
+        const query = `UPDATE departments SET status = 'active', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async deactivate(id) {
+        const query = `UPDATE departments SET status = 'inactive', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async hasChildren(id) {
+        const query = 'SELECT COUNT(*) as count FROM departments WHERE parent_department_id = ?';
+        const [rows] = await pool.query(query, [id]);
+        return rows[0].count > 0;
+    }
+
+    static async departmentNameExists(departmentName, excludeId = null) {
+        let query = 'SELECT id FROM departments WHERE department_name = ?';
+        const params = [departmentName];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows.length > 0;
+    }
+
+    static async departmentCodeExists(departmentCode, excludeId = null) {
+        let query = 'SELECT id FROM departments WHERE department_code = ?';
+        const params = [departmentCode];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows.length > 0;
+    }
+
+    static async parentDepartmentExists(parentId) {
+        const query = 'SELECT id FROM departments WHERE id = ?';
+        const [rows] = await pool.query(query, [parentId]);
+        return rows.length > 0;
+    }
+}
+
 module.exports = {
     UserModel,
     RoleModel,
     LoginAttemptModel,
     PasswordHistoryModel,
     PasswordResetTokenModel,
-    RefreshTokenModel
+    RefreshTokenModel,
+    DepartmentModel
 };
