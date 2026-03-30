@@ -4,6 +4,7 @@ CREATE DATABASE IF NOT EXISTS hrm_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 USE hrm_db;
 
 -- Drop tables in reverse order of dependencies
+DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS password_reset_tokens;
 DROP TABLE IF EXISTS password_history;
@@ -94,9 +95,106 @@ CREATE TABLE refresh_tokens (
     INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Create departments table
+CREATE TABLE departments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    department_name VARCHAR(100) NOT NULL UNIQUE,
+    department_code VARCHAR(20) NOT NULL UNIQUE,
+    parent_department_id INT NULL,
+    description TEXT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_department_id) REFERENCES departments(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_department_name (department_name),
+    INDEX idx_department_code (department_code),
+    INDEX idx_parent_department_id (parent_department_id),
+    INDEX idx_status (status),
+    INDEX idx_created_by (created_by),
+    INDEX idx_updated_by (updated_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create education_master table
+CREATE TABLE education_master (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    education_name VARCHAR(100) NOT NULL UNIQUE,
+    education_code VARCHAR(20) NOT NULL UNIQUE,
+    level ENUM('School', 'UG', 'PG', 'Doctorate', 'Certification') NOT NULL,
+    description TEXT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_education_name (education_name),
+    INDEX idx_education_code (education_code),
+    INDEX idx_level (level),
+    INDEX idx_status (status),
+    INDEX idx_created_by (created_by),
+    INDEX idx_updated_by (updated_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create course_master table (GLOBAL TABLE)
+CREATE TABLE course_master (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    course_name VARCHAR(100) NOT NULL UNIQUE,
+    course_code VARCHAR(20) NOT NULL UNIQUE,
+    description TEXT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_course_name (course_name),
+    INDEX idx_course_code (course_code),
+    INDEX idx_status (status),
+    INDEX idx_created_by (created_by),
+    INDEX idx_updated_by (updated_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create education_course_map table (MAPPING TABLE)
+CREATE TABLE education_course_map (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    education_id INT NOT NULL,
+    course_id INT NOT NULL,
+    created_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (education_id) REFERENCES education_master(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES course_master(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    UNIQUE KEY uk_education_course (education_id, course_id),
+    INDEX idx_education_id (education_id),
+    INDEX idx_course_id (course_id),
+    INDEX idx_created_by (created_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert default roles
 INSERT INTO roles (name, permissions) VALUES
 ('Super Admin', '["all"]'),
 ('Admin', '["users.read", "users.write", "users.update", "users.delete", "roles.read"]'),
 ('Manager', '["users.read", "users.write", "users.update"]'),
 ('Employee', '["users.read"]');
+
+-- Insert default departments (Seed Data)
+INSERT INTO departments (department_name, department_code, description, status, created_by) VALUES
+('Engineering', 'ENG', 'Software Engineering and Development', 'active', 1),
+('QA / Testing', 'QA', 'Quality Assurance and Testing', 'active', 1),
+('DevOps', 'DEVOPS', 'Development Operations and Infrastructure', 'active', 1),
+('UI/UX Design', 'UIUX', 'User Interface and Experience Design', 'active', 1),
+('Project Management', 'PM', 'Project Planning and Management', 'active', 1),
+('Sales', 'SALES', 'Sales and Business Development', 'active', 1),
+('Business Development', 'BD', 'Business Growth and Partnerships', 'active', 1),
+('Customer Support', 'SUPPORT', 'Customer Service and Support', 'active', 1),
+('HR', 'HR', 'Human Resources Management', 'active', 1),
+('Finance', 'FIN', 'Finance and Accounting', 'active', 1),
+('Marketing', 'MKT', 'Marketing and Communications', 'active', 1),
+('IT Support', 'ITSUPP', 'Internal IT Support', 'active', 1),
+('Administration', 'ADMIN', 'Administrative Services', 'active', 1);

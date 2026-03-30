@@ -195,6 +195,80 @@ const paginationValidation = [
     validate
 ];
 
+const createDepartmentValidation = [
+    body('department_name')
+        .trim()
+        .notEmpty().withMessage('Department name is required')
+        .isLength({ min: 2, max: 100 }).withMessage('Department name must be between 2 and 100 characters')
+        .matches(/^[a-zA-Z0-9\s\-_&()]+$/).withMessage('Department name can only contain letters, numbers, spaces, hyphens, underscores, ampersands, and parentheses'),
+    body('department_code')
+        .trim()
+        .notEmpty().withMessage('Department code is required')
+        .isLength({ min: 2, max: 20 }).withMessage('Department code must be between 2 and 20 characters')
+        .matches(/^[A-Z0-9_]+$/).withMessage('Department code must contain only uppercase letters, numbers, and underscores')
+        .custom((value) => {
+            if (value && !/^[A-Z][A-Z0-9_]*$/.test(value)) {
+                throw new Error('Department code must start with an uppercase letter');
+            }
+            return true;
+        }),
+    body('parent_department_id')
+        .optional()
+        .isInt({ min: 1 }).withMessage('Parent department ID must be a positive integer'),
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
+    body('status')
+        .optional()
+        .isIn(['active', 'inactive']).withMessage('Status must be either active or inactive'),
+    validate
+];
+
+const updateDepartmentValidation = [
+    param('id')
+        .isInt({ min: 1 }).withMessage('Invalid department ID'),
+    body('department_name')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('Department name must be between 2 and 100 characters')
+        .matches(/^[a-zA-Z0-9\s\-_&()]+$/).withMessage('Department name can only contain letters, numbers, spaces, hyphens, underscores, ampersands, and parentheses'),
+    body('department_code')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 20 }).withMessage('Department code must be between 2 and 20 characters')
+        .matches(/^[A-Z0-9_]+$/).withMessage('Department code must contain only uppercase letters, numbers, and underscores')
+        .custom((value) => {
+            if (value && !/^[A-Z][A-Z0-9_]*$/.test(value)) {
+                throw new Error('Department code must start with an uppercase letter');
+            }
+            return true;
+        }),
+    body('parent_department_id')
+        .optional()
+        .custom((value) => {
+            if (value === null || value === '') return true;
+            if (!Number.isInteger(value) || value < 1) {
+                throw new Error('Parent department ID must be a positive integer or null');
+            }
+            return true;
+        }),
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
+    body('status')
+        .optional()
+        .isIn(['active', 'inactive']).withMessage('Status must be either active or inactive'),
+    validate
+];
+
+const departmentIdValidation = [
+    param('id')
+        .isInt({ min: 1 }).withMessage('Invalid department ID'),
+    validate
+];
+
 module.exports = {
     validate,
     registerValidation,
@@ -207,5 +281,8 @@ module.exports = {
     createUserWithEmailValidation,
     updateUserValidation,
     idValidation,
-    paginationValidation
+    paginationValidation,
+    createDepartmentValidation,
+    updateDepartmentValidation,
+    departmentIdValidation
 };
