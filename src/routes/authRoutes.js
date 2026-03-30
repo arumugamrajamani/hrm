@@ -14,7 +14,7 @@ const { authLimiter, otpLimiter, passwordResetLimiter } = require('../middleware
 
 /**
  * @swagger
- * /api/auth/register:
+ * /api/v1/auth/register:
  *   post:
  *     summary: Register a new user
  *     tags: [Auth]
@@ -57,7 +57,7 @@ router.post('/register', registerValidation, authController.register);
 
 /**
  * @swagger
- * /api/auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     summary: Login user
  *     tags: [Auth]
@@ -114,7 +114,7 @@ router.post('/login', authLimiter, loginValidation, authController.login);
 
 /**
  * @swagger
- * /api/auth/verify-2fa:
+ * /api/v1/auth/verify-2fa:
  *   post:
  *     summary: Verify 2FA code
  *     tags: [Auth]
@@ -143,7 +143,7 @@ router.post('/verify-2fa', loginValidation, authController.verifyTwoFactor);
 
 /**
  * @swagger
- * /api/auth/refresh:
+ * /api/v1/auth/refresh:
  *   post:
  *     summary: Refresh access token
  *     tags: [Auth]
@@ -167,7 +167,7 @@ router.post('/refresh', authController.refreshToken);
 
 /**
  * @swagger
- * /api/auth/logout:
+ * /api/v1/auth/logout:
  *   post:
  *     summary: Logout user
  *     tags: [Auth]
@@ -181,7 +181,7 @@ router.post('/logout', authMiddleware, authController.logout);
 
 /**
  * @swagger
- * /api/auth/forgot-password:
+ * /api/v1/auth/forgot-password:
  *   post:
  *     summary: Request password reset
  *     tags: [Auth]
@@ -206,7 +206,7 @@ router.post('/forgot-password', passwordResetLimiter, forgotPasswordValidation, 
 
 /**
  * @swagger
- * /api/auth/verify-otp:
+ * /api/v1/auth/verify-otp:
  *   post:
  *     summary: Verify OTP
  *     tags: [Auth]
@@ -235,7 +235,7 @@ router.post('/verify-otp', otpLimiter, verifyOtpValidation, authController.verif
 
 /**
  * @swagger
- * /api/auth/reset-password:
+ * /api/v1/auth/reset-password:
  *   post:
  *     summary: Reset password
  *     tags: [Auth]
@@ -268,7 +268,7 @@ router.post('/reset-password', passwordResetLimiter, resetPasswordValidation, au
 
 /**
  * @swagger
- * /api/auth/change-password:
+ * /api/v1/auth/change-password:
  *   post:
  *     summary: Change password (authenticated)
  *     tags: [Auth]
@@ -321,7 +321,7 @@ router.post('/change-password', authMiddleware, changePasswordValidation, authCo
 
 /**
  * @swagger
- * /api/auth/setup-2fa:
+ * /api/v1/auth/setup-2fa:
  *   post:
  *     summary: Setup 2FA
  *     tags: [Auth]
@@ -352,7 +352,7 @@ router.post('/setup-2fa', authMiddleware, authController.setupTwoFactor);
 
 /**
  * @swagger
- * /api/auth/verify-2fa-setup:
+ * /api/v1/auth/verify-2fa-setup:
  *   post:
  *     summary: Verify 2FA setup
  *     tags: [Auth]
@@ -378,7 +378,7 @@ router.post('/verify-2fa-setup', authMiddleware, verifyOtpValidation, authContro
 
 /**
  * @swagger
- * /api/auth/disable-2fa:
+ * /api/v1/auth/disable-2fa:
  *   post:
  *     summary: Disable 2FA
  *     tags: [Auth]

@@ -2,32 +2,38 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
 const swaggerUi = require('swagger-ui-express');
 const config = require('./config');
 const swaggerSpec = require('./config/swagger');
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const departmentRoutes = require('./routes/departmentRoutes');
-const educationRoutes = require('./routes/educationRoutes');
-const courseRoutes = require('./routes/courseRoutes');
-const educationCourseMapRoutes = require('./routes/educationCourseMapRoutes');
+const requestId = require('./middlewares/requestId');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const { generalLimiter } = require('./middlewares/rateLimiter');
+const logger = require('./utils/logger');
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "blob:"]
+        }
+    },
+    crossOriginEmbedderPolicy: false
+}));
 
 const corsOptions = {
-    origin: function (origin, callback) {
-        const allowedOrigins = [
-            'http://localhost:4200',
-            'http://localhost:4201',
-            'http://localhost:3000',
-            'http://localhost:3001'
-        ];
-        const isLocalhost = origin && origin.match(/^http:\/\/localhost:\d+$/);
-        if (!origin || allowedOrigins.includes(origin) || isLocalhost) {
+    origin: (origin, callback) => {
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        if (config.ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else if (config.ENV !== 'production') {
             callback(null, true);
         } else {
             callback(null, true);
@@ -35,24 +41,53 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Forwarded-For'],
+    maxAge: 86400
 };
 
 app.use(cors(corsOptions));
 
-app.use(express.json({ limit: '20mb' }));
+app.use(compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        return compression.filter(req, res);
+    }
+}));
 
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '10kb' }));
 
-app.use(morgan('combined'));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-app.use('/uploads', express.static('uploads'));
+app.use(requestId);
+
+app.use(morgan('combined', {
+    stream: {
+        write: (message) => {
+            logger.http(message.trim());
+        }
+    }
+}));
+
+app.use('/uploads', express.static('uploads', {
+    maxAge: '1d',
+    setHeaders: (res, path) => {
+        if (path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png')) {
+            res.setHeader('Cache-Control', 'public, max-age=1');
+        }
+    }
+}));
 
 app.get('/health', (req, res) => {
     res.status(200).json({
         success: true,
         message: 'HRM API is running',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: config.APP_VERSION,
+        environment: config.ENV
     });
 });
 
@@ -71,17 +106,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customSiteTitle: 'HRM API Documentation'
 }));
 
-app.use('/api/auth', generalLimiter, authRoutes);
-
-app.use('/api/users', userRoutes);
-
-app.use('/api/departments', departmentRoutes);
-
-app.use('/api/education', educationRoutes);
-
-app.use('/api/courses', courseRoutes);
-
-app.use('/api/education-course', educationCourseMapRoutes);
+app.use('/api/v1', generalLimiter, require('./routes/v1'));
 
 app.use(notFoundHandler);
 

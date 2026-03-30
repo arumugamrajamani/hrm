@@ -1,7 +1,22 @@
 require('dotenv').config();
 
+const requiredEnvVars = [
+    'DB_HOST',
+    'DB_USER',
+    'DB_NAME',
+    'JWT_SECRET',
+    'JWT_REFRESH_SECRET'
+];
+
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0 && process.env.NODE_ENV === 'production') {
+    throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+}
+
 const config = {
     ENV: process.env.NODE_ENV || 'development',
+    APP_VERSION: process.env.APP_VERSION || '1.0.0',
     PORT: parseInt(process.env.PORT) || 3000,
 
     DB: {
@@ -12,9 +27,17 @@ const config = {
         PORT: parseInt(process.env.DB_PORT) || 3306
     },
 
+    REDIS: {
+        HOST: process.env.REDIS_HOST || 'localhost',
+        PORT: parseInt(process.env.REDIS_PORT) || 6379,
+        PASSWORD: process.env.REDIS_PASSWORD || undefined,
+        DB: parseInt(process.env.REDIS_DB) || 0
+    },
+    REDIS_URL: process.env.REDIS_URL || undefined,
+
     JWT: {
-        SECRET: process.env.JWT_SECRET || 'default-secret-key',
-        REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'default-refresh-secret',
+        SECRET: process.env.JWT_SECRET,
+        REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
         ACCESS_EXPIRY: process.env.JWT_ACCESS_EXPIRY || '15m',
         REFRESH_EXPIRY: process.env.JWT_REFRESH_EXPIRY || '7d'
     },
@@ -29,6 +52,12 @@ const config = {
         FROM_EMAIL: process.env.SMTP_FROM_EMAIL || 'noreply@hrmsystem.com'
     },
 
+    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS?.split(',') || [
+        'http://localhost:4200',
+        'http://localhost:4201',
+        'http://localhost:3000',
+        'http://localhost:3001'
+    ],
     FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:4200',
     API_URL: process.env.API_URL || 'http://localhost:3000',
 
@@ -45,6 +74,18 @@ const config = {
     RATE_LIMIT: {
         WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000,
         MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100
+    },
+
+    CACHE: {
+        DEFAULT_TTL: parseInt(process.env.CACHE_DEFAULT_TTL) || 300,
+        USER_TTL: parseInt(process.env.CACHE_USER_TTL) || 300,
+        LIST_TTL: parseInt(process.env.CACHE_LIST_TTL) || 60
+    },
+
+    LOGGING: {
+        LEVEL: process.env.LOG_LEVEL || 'info',
+        MAX_FILES: parseInt(process.env.LOG_MAX_FILES) || 14,
+        MAX_SIZE: process.env.LOG_MAX_SIZE || '20m'
     }
 };
 

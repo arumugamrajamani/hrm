@@ -2,45 +2,66 @@ const app = require('./app');
 const config = require('./config');
 const { testConnection } = require('./config/database');
 const { RefreshTokenModel } = require('./models');
+const cacheService = require('./services/cacheService');
+const { initRedisStore } = require('./middlewares/rateLimiter');
+const logger = require('./utils/logger');
 
 const startServer = async () => {
     try {
+        logger.info('Starting HRM Server...');
+
         const dbConnected = await testConnection();
         
         if (!dbConnected) {
-            console.error(`[${new Date().toISOString()}] Failed to connect to database. Exiting...`);
+            logger.error('Failed to connect to database. Exiting...');
             process.exit(1);
         }
+        logger.info('Database connected successfully');
 
         await RefreshTokenModel.deleteExpired();
-        console.log(`[${new Date().toISOString()}] Cleaned up expired refresh tokens`);
+        logger.info('Cleaned up expired refresh tokens');
+
+        const redisConnected = await cacheService.connect();
+        if (redisConnected) {
+            logger.info('Redis cache connected successfully');
+            await initRedisStore();
+        } else {
+            logger.warn('Running without Redis cache - performance may be affected');
+        }
 
         const server = app.listen(config.PORT, () => {
-            console.log(`[${new Date().toISOString()}] HRM Server started successfully`);
-            console.log(`[${new Date().toISOString()}] Environment: ${config.ENV}`);
-            console.log(`[${new Date().toISOString()}] Server running on port: ${config.PORT}`);
-            console.log(`[${new Date().toISOString()}] Frontend URL: ${config.FRONTEND_URL}`);
+            logger.info(`HRM Server started successfully on port ${config.PORT}`);
+            logger.info(`Environment: ${config.ENV}`);
+            logger.info(`API Version: ${config.APP_VERSION}`);
+            logger.info(`Frontend URL: ${config.FRONTEND_URL}`);
         });
 
         const gracefulShutdown = async (signal) => {
-            console.log(`[${new Date().toISOString()}] ${signal} received. Shutting down gracefully...`);
+            logger.info(`${signal} received. Shutting down gracefully...`);
             
             server.close(async () => {
-                console.log(`[${new Date().toISOString()}] HTTP server closed`);
+                logger.info('HTTP server closed');
                 
                 try {
                     const { pool } = require('./config/database');
                     await pool.end();
-                    console.log(`[${new Date().toISOString()}] Database connections closed`);
+                    logger.info('Database connections closed');
                 } catch (error) {
-                    console.error(`[${new Date().toISOString()}] Error closing database connections:`, error);
+                    logger.error('Error closing database connections', { error: error.message });
+                }
+
+                try {
+                    await cacheService.disconnect();
+                    logger.info('Redis connections closed');
+                } catch (error) {
+                    logger.error('Error closing Redis connections', { error: error.message });
                 }
                 
                 process.exit(0);
             });
 
             setTimeout(() => {
-                console.error(`[${new Date().toISOString()}] Forced shutdown after timeout`);
+                logger.error('Forced shutdown after timeout');
                 process.exit(1);
             }, 10000);
         };
@@ -49,16 +70,16 @@ const startServer = async () => {
         process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
         process.on('unhandledRejection', (reason, promise) => {
-            console.error(`[${new Date().toISOString()}] Unhandled Rejection at:`, promise, 'reason:', reason);
+            logger.error('Unhandled Rejection', { reason: String(reason), promise: String(promise) });
         });
 
         process.on('uncaughtException', (error) => {
-            console.error(`[${new Date().toISOString()}] Uncaught Exception:`, error);
+            logger.error('Uncaught Exception', { error: error.message, stack: error.stack });
             process.exit(1);
         });
 
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Failed to start server:`, error);
+        logger.error('Failed to start server', { error: error.message, stack: error.stack });
         process.exit(1);
     }
 };

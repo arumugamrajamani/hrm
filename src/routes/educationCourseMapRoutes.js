@@ -11,7 +11,7 @@ router.use(authMiddleware);
 
 /**
  * @swagger
- * /api/education-course:
+ * /api/v1/education-course:
  *   get:
  *     summary: Get all education-course mappings
  *     description: Retrieve all mappings between educations and courses. Requires authentication.
@@ -47,7 +47,7 @@ router.get('/', generalLimiter, educationCourseMapController.getAllMappings);
 
 /**
  * @swagger
- * /api/education-course/{id}:
+ * /api/v1/education-course/{id}:
  *   get:
  *     summary: Get mapping by ID
  *     description: Retrieve a specific education-course mapping by its ID. Requires authentication.
@@ -94,7 +94,7 @@ router.get('/:id', validateParams(mappingIdSchema), educationCourseMapController
 
 /**
  * @swagger
- * /api/education-course:
+ * /api/v1/education-course:
  *   post:
  *     summary: Create a new education-course mapping (Admin only)
  *     description: Create a mapping between an education and a course. This endpoint requires admin privileges.
@@ -170,7 +170,7 @@ router.post('/', isAdmin, validate(createMappingSchema), educationCourseMapContr
 
 /**
  * @swagger
- * /api/education-course/{id}:
+ * /api/v1/education-course/{id}:
  *   delete:
  *     summary: Delete education-course mapping (Admin only)
  *     description: Remove a mapping between an education and a course. This endpoint requires admin privileges.

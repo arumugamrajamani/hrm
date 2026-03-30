@@ -17,7 +17,7 @@ router.use(authMiddleware);
 
 /**
  * @swagger
- * /api/users:
+ * /api/v1/users:
  *   get:
  *     summary: Get all users
  *     description: Retrieve a paginated list of users. Supports search by username, email, or mobile. Requires authentication.
@@ -96,7 +96,7 @@ router.get('/', generalLimiter, paginationValidation, userController.getAllUsers
 
 /**
  * @swagger
- * /api/users/roles:
+ * /api/v1/users/roles:
  *   get:
  *     summary: Get all roles
  *     description: Retrieve all available user roles. Requires authentication.
@@ -132,7 +132,7 @@ router.get('/roles', userController.getAllRoles);
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/v1/users/{id}:
  *   get:
  *     summary: Get user by ID
  *     description: Retrieve a specific user by their ID. Requires authentication.
@@ -172,7 +172,7 @@ router.get('/:id', idValidation, userController.getUserById);
 
 /**
  * @swagger
- * /api/users:
+ * /api/v1/users:
  *   post:
  *     summary: Create a new user (Admin only)
  *     description: Create a new user account. This endpoint requires admin privileges. Supports multipart form data for profile photo upload.
@@ -240,7 +240,7 @@ router.post('/', isAdmin, upload.single('profile_photo'), userController.createU
 
 /**
  * @swagger
- * /api/users/with-email:
+ * /api/v1/users/with-email:
  *   post:
  *     summary: Create user with email invitation (Admin only)
  *     description: Create a new user and send an email invitation. This endpoint requires admin privileges.
@@ -286,7 +286,7 @@ router.post('/with-email', isAdmin, createUserWithEmailValidation, userControlle
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/v1/users/{id}:
  *   put:
  *     summary: Update user (Admin only)
  *     description: Update an existing user. This endpoint requires admin privileges. Supports multipart form data for profile photo upload.
@@ -344,7 +344,7 @@ router.put('/:id', isAdmin, upload.single('profile_photo'), userController.updat
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/v1/users/{id}:
  *   delete:
  *     summary: Delete user (Admin only)
  *     description: Delete a user permanently. This endpoint requires admin privileges.
@@ -372,7 +372,7 @@ router.delete('/:id', isAdmin, idValidation, userController.deleteUser);
 
 /**
  * @swagger
- * /api/users/{id}/activate:
+ * /api/v1/users/{id}/activate:
  *   patch:
  *     summary: Activate user (Admin only)
  *     description: Activate a deactivated user account. This endpoint requires admin privileges.
@@ -400,7 +400,7 @@ router.patch('/:id/activate', isAdmin, idValidation, userController.activateUser
 
 /**
  * @swagger
- * /api/users/{id}/deactivate:
+ * /api/v1/users/{id}/deactivate:
  *   patch:
  *     summary: Deactivate user (Admin only)
  *     description: Deactivate a user account. This endpoint requires admin privileges.

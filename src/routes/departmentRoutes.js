@@ -15,7 +15,7 @@ router.use(authMiddleware);
 
 /**
  * @swagger
- * /api/departments:
+ * /api/v1/departments:
  *   get:
  *     summary: Get all departments
  *     description: Retrieve a paginated list of departments with optional search, filtering, and hierarchy support. Requires authentication.
@@ -97,7 +97,7 @@ router.get('/', generalLimiter, paginationValidation, departmentController.getAl
 
 /**
  * @swagger
- * /api/departments/hierarchy:
+ * /api/v1/departments/hierarchy:
  *   get:
  *     summary: Get department hierarchy
  *     description: Retrieve the complete department hierarchy as a nested tree structure. Requires authentication.
@@ -133,7 +133,7 @@ router.get('/hierarchy', departmentController.getDepartmentHierarchy);
 
 /**
  * @swagger
- * /api/departments/{id}/children:
+ * /api/v1/departments/{id}/children:
  *   get:
  *     summary: Get child departments
  *     description: Retrieve all direct child departments of a specific department. Requires authentication.
@@ -182,7 +182,7 @@ router.get('/:id/children', departmentIdValidation, departmentController.getChil
 
 /**
  * @swagger
- * /api/departments/{id}:
+ * /api/v1/departments/{id}:
  *   get:
  *     summary: Get department by ID
  *     description: Retrieve a specific department by its ID with parent department information. Requires authentication.
@@ -229,7 +229,7 @@ router.get('/:id', departmentIdValidation, departmentController.getDepartmentByI
 
 /**
  * @swagger
- * /api/departments:
+ * /api/v1/departments:
  *   post:
  *     summary: Create a new department (Admin only)
  *     description: Create a new department. This endpoint requires admin privileges.
@@ -313,7 +313,7 @@ router.post('/', isAdmin, createDepartmentValidation, departmentController.creat
 
 /**
  * @swagger
- * /api/departments/{id}:
+ * /api/v1/departments/{id}:
  *   put:
  *     summary: Update department (Admin only)
  *     description: Update an existing department. This endpoint requires admin privileges. Supports circular hierarchy prevention.
@@ -406,7 +406,7 @@ router.put('/:id', isAdmin, updateDepartmentValidation, departmentController.upd
 
 /**
  * @swagger
- * /api/departments/{id}:
+ * /api/v1/departments/{id}:
  *   delete:
  *     summary: Delete (deactivate) department (Admin only)
  *     description: Soft delete a department by marking it as inactive. This endpoint requires admin privileges. Departments with child departments cannot be deleted.
@@ -463,7 +463,7 @@ router.delete('/:id', isAdmin, departmentIdValidation, departmentController.dele
 
 /**
  * @swagger
- * /api/departments/{id}/activate:
+ * /api/v1/departments/{id}/activate:
  *   patch:
  *     summary: Activate department (Admin only)
  *     description: Activate a deactivated department. This endpoint requires admin privileges.
@@ -516,7 +516,7 @@ router.patch('/:id/activate', isAdmin, departmentIdValidation, departmentControl
 
 /**
  * @swagger
- * /api/departments/{id}/deactivate:
+ * /api/v1/departments/{id}/deactivate:
  *   patch:
  *     summary: Deactivate department (Admin only)
  *     description: Deactivate an active department. This endpoint requires admin privileges. Departments with child departments cannot be deactivated.

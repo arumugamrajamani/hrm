@@ -16,7 +16,7 @@ router.use(authMiddleware);
 
 /**
  * @swagger
- * /api/education:
+ * /api/v1/education:
  *   get:
  *     summary: Get all educations
  *     description: Retrieve a paginated list of educations with optional search, filtering by level and status. Requires authentication.
@@ -99,7 +99,7 @@ router.get('/', generalLimiter, validateQuery(educationQuerySchema), educationCo
 
 /**
  * @swagger
- * /api/education/{id}:
+ * /api/v1/education/{id}:
  *   get:
  *     summary: Get education by ID
  *     description: Retrieve a specific education by its ID. Requires authentication.
@@ -146,7 +146,7 @@ router.get('/:id', validateParams(educationIdSchema), educationController.getEdu
 
 /**
  * @swagger
- * /api/education/{id}/courses:
+ * /api/v1/education/{id}/courses:
  *   get:
  *     summary: Get all courses under an education
  *     description: Retrieve all courses mapped to a specific education. Requires authentication.
@@ -232,7 +232,7 @@ router.get('/:id/courses', validateParams(educationIdSchema), educationControlle
 
 /**
  * @swagger
- * /api/education:
+ * /api/v1/education:
  *   post:
  *     summary: Create a new education (Admin only)
  *     description: Create a new education/degree. This endpoint requires admin privileges.
@@ -317,7 +317,7 @@ router.post('/', isAdmin, validate(createEducationSchema), educationController.c
 
 /**
  * @swagger
- * /api/education/{id}:
+ * /api/v1/education/{id}:
  *   put:
  *     summary: Update education (Admin only)
  *     description: Update an existing education. This endpoint requires admin privileges.
@@ -410,7 +410,7 @@ router.put('/:id', isAdmin, validateParams(educationIdSchema), validate(updateEd
 
 /**
  * @swagger
- * /api/education/{id}:
+ * /api/v1/education/{id}:
  *   delete:
  *     summary: Delete (deactivate) education (Admin only)
  *     description: Soft delete an education by marking it as inactive. This endpoint requires admin privileges.
@@ -464,7 +464,7 @@ router.delete('/:id', isAdmin, validateParams(educationIdSchema), educationContr
 
 /**
  * @swagger
- * /api/education/{id}/activate:
+ * /api/v1/education/{id}/activate:
  *   patch:
  *     summary: Activate education (Admin only)
  *     description: Activate a deactivated education. This endpoint requires admin privileges.
@@ -517,7 +517,7 @@ router.patch('/:id/activate', isAdmin, validateParams(educationIdSchema), educat
 
 /**
  * @swagger
- * /api/education/{id}/deactivate:
+ * /api/v1/education/{id}/deactivate:
  *   patch:
  *     summary: Deactivate education (Admin only)
  *     description: Deactivate an active education. This endpoint requires admin privileges.
