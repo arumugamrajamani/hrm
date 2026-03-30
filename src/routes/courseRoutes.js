@@ -16,7 +16,7 @@ router.use(authMiddleware);
 
 /**
  * @swagger
- * /api/courses:
+ * /api/v1/courses:
  *   get:
  *     summary: Get all courses
  *     description: Retrieve a paginated list of courses with optional search and status filtering. Requires authentication.
@@ -92,7 +92,7 @@ router.get('/', generalLimiter, validateQuery(courseQuerySchema), courseControll
 
 /**
  * @swagger
- * /api/courses/{id}:
+ * /api/v1/courses/{id}:
  *   get:
  *     summary: Get course by ID
  *     description: Retrieve a specific course by its ID. Requires authentication.
@@ -139,7 +139,7 @@ router.get('/:id', validateParams(courseIdSchema), courseController.getCourseByI
 
 /**
  * @swagger
- * /api/courses/{id}/educations:
+ * /api/v1/courses/{id}/educations:
  *   get:
  *     summary: Get all educations for a course
  *     description: Retrieve all educations mapped to a specific course. Requires authentication.
@@ -225,7 +225,7 @@ router.get('/:id/educations', validateParams(courseIdSchema), courseController.g
 
 /**
  * @swagger
- * /api/courses:
+ * /api/v1/courses:
  *   post:
  *     summary: Create a new course (Admin only)
  *     description: Create a new course/specialization. This endpoint requires admin privileges.
@@ -304,7 +304,7 @@ router.post('/', isAdmin, validate(createCourseSchema), courseController.createC
 
 /**
  * @swagger
- * /api/courses/{id}:
+ * /api/v1/courses/{id}:
  *   put:
  *     summary: Update course (Admin only)
  *     description: Update an existing course. This endpoint requires admin privileges.
@@ -392,7 +392,7 @@ router.put('/:id', isAdmin, validateParams(courseIdSchema), validate(updateCours
 
 /**
  * @swagger
- * /api/courses/{id}:
+ * /api/v1/courses/{id}:
  *   delete:
  *     summary: Delete (deactivate) course (Admin only)
  *     description: Soft delete a course by marking it as inactive. This endpoint requires admin privileges.
@@ -446,7 +446,7 @@ router.delete('/:id', isAdmin, validateParams(courseIdSchema), courseController.
 
 /**
  * @swagger
- * /api/courses/{id}/activate:
+ * /api/v1/courses/{id}/activate:
  *   patch:
  *     summary: Activate course (Admin only)
  *     description: Activate a deactivated course. This endpoint requires admin privileges.
@@ -499,7 +499,7 @@ router.patch('/:id/activate', isAdmin, validateParams(courseIdSchema), courseCon
 
 /**
  * @swagger
- * /api/courses/{id}/deactivate:
+ * /api/v1/courses/{id}/deactivate:
  *   patch:
  *     summary: Deactivate course (Admin only)
  *     description: Deactivate an active course. This endpoint requires admin privileges.

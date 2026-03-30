@@ -1,23 +1,33 @@
 const config = require('../config');
 
-const successResponse = (res, data, message = 'Success', statusCode = 200) => {
-    return res.status(statusCode).json({
+const successResponse = (res, data, message = 'Success', statusCode = 200, meta = null) => {
+    const response = {
         success: true,
         message,
         data
-    });
+    };
+
+    if (meta !== null) {
+        response.meta = meta;
+    }
+
+    return res.status(statusCode).json(response);
 };
 
-const errorResponse = (res, message = 'Error', statusCode = 500, errors = null) => {
+const errorResponse = (res, message = 'Error', statusCode = 500, error = null) => {
     const response = {
         success: false,
         message
     };
-    
-    if (errors) {
-        response.errors = errors;
+
+    if (error && process.env.NODE_ENV !== 'production') {
+        response.error = {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        };
     }
-    
+
     return res.status(statusCode).json(response);
 };
 
@@ -26,7 +36,14 @@ const paginatedResponse = (res, data, pagination, message = 'Success') => {
         success: true,
         message,
         data,
-        pagination
+        meta: {
+            pagination: {
+                page: pagination.page,
+                limit: pagination.limit,
+                total: pagination.total,
+                totalPages: pagination.totalPages
+            }
+        }
     });
 };
 

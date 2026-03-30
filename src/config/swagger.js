@@ -1,3 +1,4 @@
+const config = require('../config');
 const swaggerJsdoc = require('swagger-jsdoc');
 
 const options = {
@@ -5,13 +6,34 @@ const options = {
         openapi: '3.0.0',
         info: {
             title: 'HRM API',
-            version: '1.0.0',
-            description: 'Human Resource Management System API',
+            version: config.APP_VERSION || '1.0.0',
+            description: 'Human Resource Management System API Documentation\n\n## Response Format\nAll responses follow this structure:\n```json\n{\n  "success": true,\n  "message": "Success message",\n  "data": {},\n  "meta": {\n    "pagination": {\n      "page": 1,\n      "limit": 10,\n      "total": 100,\n      "totalPages": 10\n    }\n  }\n}\n```\n\n## Authentication\nThis API uses JWT Bearer token authentication.',
+            contact: {
+                name: 'API Support',
+                email: 'support@hrmsystem.com'
+            },
+            license: {
+                name: 'MIT',
+                url: 'https://opensource.org/licenses/MIT'
+            }
         },
         servers: [
             {
-                url: 'http://localhost:3000',
+                url: 'http://localhost:3000/api/v1',
                 description: 'Development server',
+            },
+            {
+                url: '{protocol}://{host}/api/v1',
+                description: 'Production server',
+                variables: {
+                    protocol: {
+                        enum: ['http', 'https'],
+                        default: 'https'
+                    },
+                    host: {
+                        default: 'api.hrmsystem.com'
+                    }
+                }
             },
         ],
         components: {
@@ -29,7 +51,16 @@ const options = {
                     properties: {
                         success: { type: 'boolean', example: false },
                         message: { type: 'string', example: 'Error message' },
-                        errors: { type: 'array', items: { type: 'string' } },
+                        errors: { 
+                            type: 'array', 
+                            items: { 
+                                type: 'object',
+                                properties: {
+                                    field: { type: 'string' },
+                                    message: { type: 'string' }
+                                }
+                            } 
+                        },
                     },
                 },
                 Success: {
@@ -38,6 +69,7 @@ const options = {
                         success: { type: 'boolean', example: true },
                         message: { type: 'string', example: 'Success message' },
                         data: { type: 'object' },
+                        meta: { type: 'object', nullable: true },
                     },
                 },
                 User: {
@@ -209,7 +241,7 @@ const options = {
         },
         security: []
     },
-    apis: ['./src/routes/*.js'],
+    apis: ['./src/routes/v1/*.js', './src/routes/*.js'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
