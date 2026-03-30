@@ -118,6 +118,64 @@ CREATE TABLE departments (
     INDEX idx_updated_by (updated_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Create education_master table
+CREATE TABLE education_master (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    education_name VARCHAR(100) NOT NULL UNIQUE,
+    education_code VARCHAR(20) NOT NULL UNIQUE,
+    level ENUM('School', 'UG', 'PG', 'Doctorate', 'Certification') NOT NULL,
+    description TEXT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_education_name (education_name),
+    INDEX idx_education_code (education_code),
+    INDEX idx_level (level),
+    INDEX idx_status (status),
+    INDEX idx_created_by (created_by),
+    INDEX idx_updated_by (updated_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create course_master table (GLOBAL TABLE)
+CREATE TABLE course_master (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    course_name VARCHAR(100) NOT NULL UNIQUE,
+    course_code VARCHAR(20) NOT NULL UNIQUE,
+    description TEXT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_course_name (course_name),
+    INDEX idx_course_code (course_code),
+    INDEX idx_status (status),
+    INDEX idx_created_by (created_by),
+    INDEX idx_updated_by (updated_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create education_course_map table (MAPPING TABLE)
+CREATE TABLE education_course_map (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    education_id INT NOT NULL,
+    course_id INT NOT NULL,
+    created_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (education_id) REFERENCES education_master(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES course_master(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    UNIQUE KEY uk_education_course (education_id, course_id),
+    INDEX idx_education_id (education_id),
+    INDEX idx_course_id (course_id),
+    INDEX idx_created_by (created_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert default roles
 INSERT INTO roles (name, permissions) VALUES
 ('Super Admin', '["all"]'),

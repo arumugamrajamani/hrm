@@ -8,6 +8,9 @@ const swaggerSpec = require('./config/swagger');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const departmentRoutes = require('./routes/departmentRoutes');
+const educationRoutes = require('./routes/educationRoutes');
+const courseRoutes = require('./routes/courseRoutes');
+const educationCourseMapRoutes = require('./routes/educationCourseMapRoutes');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const { generalLimiter } = require('./middlewares/rateLimiter');
 
@@ -73,6 +76,12 @@ app.use('/api/auth', generalLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 
 app.use('/api/departments', departmentRoutes);
+
+app.use('/api/education', educationRoutes);
+
+app.use('/api/courses', courseRoutes);
+
+app.use('/api/education-course', educationCourseMapRoutes);
 
 app.use(notFoundHandler);
 

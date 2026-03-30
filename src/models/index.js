@@ -691,6 +691,462 @@ class DepartmentModel {
     }
 }
 
+class EducationModel {
+    static async findAll({ page = 1, limit = 10, search = '', level = '', status = '' }) {
+        const offset = (page - 1) * limit;
+        let whereClause = 'WHERE 1=1';
+        const params = [];
+
+        if (search) {
+            whereClause += ' AND (e.education_name LIKE ? OR e.education_code LIKE ? OR e.description LIKE ?)';
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        if (level) {
+            whereClause += ' AND e.level = ?';
+            params.push(level);
+        }
+
+        if (status) {
+            whereClause += ' AND e.status = ?';
+            params.push(status);
+        }
+
+        const countQuery = `
+            SELECT COUNT(*) as total 
+            FROM education_master e
+            ${whereClause}
+        `;
+
+        const dataQuery = `
+            SELECT 
+                e.*,
+                cu.username as created_by_username,
+                uu.username as updated_by_username
+            FROM education_master e
+            LEFT JOIN users cu ON e.created_by = cu.id
+            LEFT JOIN users uu ON e.updated_by = uu.id
+            ${whereClause}
+            ORDER BY e.education_name ASC
+            LIMIT ? OFFSET ?
+        `;
+
+        const [countResult] = await pool.query(countQuery, params);
+        const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
+
+        return {
+            educations: rows,
+            total: countResult[0].total,
+            page,
+            limit,
+            totalPages: Math.ceil(countResult[0].total / limit)
+        };
+    }
+
+    static async findById(id) {
+        const query = `
+            SELECT 
+                e.*,
+                cu.username as created_by_username,
+                uu.username as updated_by_username
+            FROM education_master e
+            LEFT JOIN users cu ON e.created_by = cu.id
+            LEFT JOIN users uu ON e.updated_by = uu.id
+            WHERE e.id = ?
+        `;
+        const [rows] = await pool.query(query, [id]);
+        return rows[0] || null;
+    }
+
+    static async findByName(educationName, excludeId = null) {
+        let query = 'SELECT * FROM education_master WHERE education_name = ?';
+        const params = [educationName];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async findByCode(educationCode, excludeId = null) {
+        let query = 'SELECT * FROM education_master WHERE education_code = ?';
+        const params = [educationCode];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async create(educationData) {
+        const { education_name, education_code, level, description, status = 'active', created_by } = educationData;
+        
+        const query = `
+            INSERT INTO education_master (education_name, education_code, level, description, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        `;
+        
+        const [result] = await pool.query(query, [education_name, education_code, level, description || null, status, created_by || null]);
+        return result.insertId;
+    }
+
+    static async update(id, educationData) {
+        const allowedFields = ['education_name', 'education_code', 'level', 'description', 'status', 'updated_by'];
+        const updates = [];
+        const params = [];
+
+        for (const field of allowedFields) {
+            if (educationData[field] !== undefined) {
+                updates.push(`${field} = ?`);
+                params.push(educationData[field]);
+            }
+        }
+
+        if (updates.length === 0) return false;
+
+        params.push(id);
+        const query = `UPDATE education_master SET ${updates.join(', ')}, updated_at = NOW() WHERE id = ?`;
+        
+        const [result] = await pool.query(query, params);
+        return result.affectedRows > 0;
+    }
+
+    static async softDelete(id) {
+        const query = `UPDATE education_master SET status = 'inactive', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async activate(id) {
+        const query = `UPDATE education_master SET status = 'active', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async deactivate(id) {
+        const query = `UPDATE education_master SET status = 'inactive', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async educationNameExists(educationName, excludeId = null) {
+        let query = 'SELECT id FROM education_master WHERE education_name = ?';
+        const params = [educationName];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows.length > 0;
+    }
+
+    static async educationCodeExists(educationCode, excludeId = null) {
+        let query = 'SELECT id FROM education_master WHERE education_code = ?';
+        const params = [educationCode];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows.length > 0;
+    }
+
+    static async hasMappings(id) {
+        const query = 'SELECT COUNT(*) as count FROM education_course_map WHERE education_id = ?';
+        const [rows] = await pool.query(query, [id]);
+        return rows[0].count > 0;
+    }
+}
+
+class CourseModel {
+    static async findAll({ page = 1, limit = 10, search = '', status = '' }) {
+        const offset = (page - 1) * limit;
+        let whereClause = 'WHERE 1=1';
+        const params = [];
+
+        if (search) {
+            whereClause += ' AND (c.course_name LIKE ? OR c.course_code LIKE ? OR c.description LIKE ?)';
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        if (status) {
+            whereClause += ' AND c.status = ?';
+            params.push(status);
+        }
+
+        const countQuery = `
+            SELECT COUNT(*) as total 
+            FROM course_master c
+            ${whereClause}
+        `;
+
+        const dataQuery = `
+            SELECT 
+                c.*,
+                cu.username as created_by_username,
+                uu.username as updated_by_username
+            FROM course_master c
+            LEFT JOIN users cu ON c.created_by = cu.id
+            LEFT JOIN users uu ON c.updated_by = uu.id
+            ${whereClause}
+            ORDER BY c.course_name ASC
+            LIMIT ? OFFSET ?
+        `;
+
+        const [countResult] = await pool.query(countQuery, params);
+        const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
+
+        return {
+            courses: rows,
+            total: countResult[0].total,
+            page,
+            limit,
+            totalPages: Math.ceil(countResult[0].total / limit)
+        };
+    }
+
+    static async findById(id) {
+        const query = `
+            SELECT 
+                c.*,
+                cu.username as created_by_username,
+                uu.username as updated_by_username
+            FROM course_master c
+            LEFT JOIN users cu ON c.created_by = cu.id
+            LEFT JOIN users uu ON c.updated_by = uu.id
+            WHERE c.id = ?
+        `;
+        const [rows] = await pool.query(query, [id]);
+        return rows[0] || null;
+    }
+
+    static async findByName(courseName, excludeId = null) {
+        let query = 'SELECT * FROM course_master WHERE course_name = ?';
+        const params = [courseName];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async findByCode(courseCode, excludeId = null) {
+        let query = 'SELECT * FROM course_master WHERE course_code = ?';
+        const params = [courseCode];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async create(courseData) {
+        const { course_name, course_code, description, status = 'active', created_by } = courseData;
+        
+        const query = `
+            INSERT INTO course_master (course_name, course_code, description, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
+        `;
+        
+        const [result] = await pool.query(query, [course_name, course_code, description || null, status, created_by || null]);
+        return result.insertId;
+    }
+
+    static async update(id, courseData) {
+        const allowedFields = ['course_name', 'course_code', 'description', 'status', 'updated_by'];
+        const updates = [];
+        const params = [];
+
+        for (const field of allowedFields) {
+            if (courseData[field] !== undefined) {
+                updates.push(`${field} = ?`);
+                params.push(courseData[field]);
+            }
+        }
+
+        if (updates.length === 0) return false;
+
+        params.push(id);
+        const query = `UPDATE course_master SET ${updates.join(', ')}, updated_at = NOW() WHERE id = ?`;
+        
+        const [result] = await pool.query(query, params);
+        return result.affectedRows > 0;
+    }
+
+    static async softDelete(id) {
+        const query = `UPDATE course_master SET status = 'inactive', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async activate(id) {
+        const query = `UPDATE course_master SET status = 'active', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async deactivate(id) {
+        const query = `UPDATE course_master SET status = 'inactive', updated_at = NOW() WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async courseNameExists(courseName, excludeId = null) {
+        let query = 'SELECT id FROM course_master WHERE course_name = ?';
+        const params = [courseName];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows.length > 0;
+    }
+
+    static async courseCodeExists(courseCode, excludeId = null) {
+        let query = 'SELECT id FROM course_master WHERE course_code = ?';
+        const params = [courseCode];
+        
+        if (excludeId) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+        
+        const [rows] = await pool.query(query, params);
+        return rows.length > 0;
+    }
+
+    static async hasMappings(id) {
+        const query = 'SELECT COUNT(*) as count FROM education_course_map WHERE course_id = ?';
+        const [rows] = await pool.query(query, [id]);
+        return rows[0].count > 0;
+    }
+}
+
+class EducationCourseMapModel {
+    static async findAll() {
+        const query = `
+            SELECT 
+                ecm.*,
+                e.education_name,
+                e.education_code,
+                c.course_name,
+                c.course_code,
+                u.username as created_by_username
+            FROM education_course_map ecm
+            LEFT JOIN education_master e ON ecm.education_id = e.id
+            LEFT JOIN course_master c ON ecm.course_id = c.id
+            LEFT JOIN users u ON ecm.created_by = u.id
+            ORDER BY e.education_name ASC, c.course_name ASC
+        `;
+        const [rows] = await pool.query(query);
+        return rows;
+    }
+
+    static async findById(id) {
+        const query = `
+            SELECT 
+                ecm.*,
+                e.education_name,
+                e.education_code,
+                c.course_name,
+                c.course_code,
+                u.username as created_by_username
+            FROM education_course_map ecm
+            LEFT JOIN education_master e ON ecm.education_id = e.id
+            LEFT JOIN course_master c ON ecm.course_id = c.id
+            LEFT JOIN users u ON ecm.created_by = u.id
+            WHERE ecm.id = ?
+        `;
+        const [rows] = await pool.query(query, [id]);
+        return rows[0] || null;
+    }
+
+    static async findByEducationId(educationId) {
+        const query = `
+            SELECT 
+                ecm.id,
+                ecm.education_id,
+                ecm.course_id,
+                ecm.created_at,
+                c.course_name,
+                c.course_code,
+                c.description as course_description,
+                c.status as course_status
+            FROM education_course_map ecm
+            LEFT JOIN course_master c ON ecm.course_id = c.id
+            WHERE ecm.education_id = ?
+            ORDER BY c.course_name ASC
+        `;
+        const [rows] = await pool.query(query, [educationId]);
+        return rows;
+    }
+
+    static async findByCourseId(courseId) {
+        const query = `
+            SELECT 
+                ecm.id,
+                ecm.education_id,
+                ecm.course_id,
+                ecm.created_at,
+                e.education_name,
+                e.education_code,
+                e.level,
+                e.description as education_description,
+                e.status as education_status
+            FROM education_course_map ecm
+            LEFT JOIN education_master e ON ecm.education_id = e.id
+            WHERE ecm.course_id = ?
+            ORDER BY e.education_name ASC
+        `;
+        const [rows] = await pool.query(query, [courseId]);
+        return rows;
+    }
+
+    static async create(mapData) {
+        const { education_id, course_id, created_by } = mapData;
+        
+        const query = `
+            INSERT INTO education_course_map (education_id, course_id, created_by, created_at)
+            VALUES (?, ?, ?, NOW())
+        `;
+        
+        const [result] = await pool.query(query, [education_id, course_id, created_by || null]);
+        return result.insertId;
+    }
+
+    static async delete(id) {
+        const query = 'DELETE FROM education_course_map WHERE id = ?';
+        const [result] = await pool.query(query, [id]);
+        return result.affectedRows > 0;
+    }
+
+    static async mappingExists(educationId, courseId) {
+        const query = 'SELECT id FROM education_course_map WHERE education_id = ? AND course_id = ?';
+        const [rows] = await pool.query(query, [educationId, courseId]);
+        return rows.length > 0;
+    }
+}
+
 module.exports = {
     UserModel,
     RoleModel,
@@ -698,5 +1154,8 @@ module.exports = {
     PasswordHistoryModel,
     PasswordResetTokenModel,
     RefreshTokenModel,
-    DepartmentModel
+    DepartmentModel,
+    EducationModel,
+    CourseModel,
+    EducationCourseMapModel
 };
