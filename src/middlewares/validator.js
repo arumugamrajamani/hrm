@@ -269,6 +269,218 @@ const departmentIdValidation = [
     validate
 ];
 
+const createLocationValidation = [
+    body('location_name')
+        .trim()
+        .notEmpty().withMessage('Location name is required')
+        .isLength({ min: 2, max: 100 }).withMessage('Location name must be between 2 and 100 characters')
+        .matches(/^[a-zA-Z0-9\s\-_&()]+$/).withMessage('Location name can only contain letters, numbers, spaces, hyphens, underscores, ampersands, and parentheses'),
+    body('location_code')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 20 }).withMessage('Location code must be between 2 and 20 characters')
+        .matches(/^[A-Z0-9_]+$/).withMessage('Location code must contain only uppercase letters, numbers, and underscores')
+        .custom((value) => {
+            if (value && !/^[A-Z][A-Z0-9_]*$/.test(value)) {
+                throw new Error('Location code must start with an uppercase letter');
+            }
+            return true;
+        }),
+    body('parent_location_id')
+        .optional()
+        .isInt({ min: 1 }).withMessage('Parent location ID must be a positive integer'),
+    body('address')
+        .optional()
+        .trim()
+        .isLength({ max: 500 }).withMessage('Address cannot exceed 500 characters'),
+    body('city')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('City must be between 2 and 100 characters'),
+    body('state')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('State must be between 2 and 100 characters'),
+    body('country')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('Country must be between 2 and 100 characters'),
+    body('pincode')
+        .optional()
+        .trim()
+        .isLength({ min: 4, max: 20 }).withMessage('Pincode must be between 4 and 20 characters'),
+    body('phone')
+        .optional()
+        .trim()
+        .matches(/^\+?[1-9]\d{6,14}$/).withMessage('Invalid phone number format'),
+    body('email')
+        .optional()
+        .trim()
+        .isEmail().withMessage('Invalid email format')
+        .normalizeEmail(),
+    body('is_headquarters')
+        .optional()
+        .isBoolean().withMessage('is_headquarters must be a boolean value'),
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
+    body('status')
+        .optional()
+        .isIn(['active', 'inactive']).withMessage('Status must be either active or inactive'),
+    validate
+];
+
+const updateLocationValidation = [
+    param('id')
+        .isInt({ min: 1 }).withMessage('Invalid location ID'),
+    body('location_name')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('Location name must be between 2 and 100 characters')
+        .matches(/^[a-zA-Z0-9\s\-_&()]+$/).withMessage('Location name can only contain letters, numbers, spaces, hyphens, underscores, ampersands, and parentheses'),
+    body('location_code')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 20 }).withMessage('Location code must be between 2 and 20 characters')
+        .matches(/^[A-Z0-9_]+$/).withMessage('Location code must contain only uppercase letters, numbers, and underscores')
+        .custom((value) => {
+            if (value && !/^[A-Z][A-Z0-9_]*$/.test(value)) {
+                throw new Error('Location code must start with an uppercase letter');
+            }
+            return true;
+        }),
+    body('parent_location_id')
+        .optional()
+        .custom((value) => {
+            if (value === null || value === '') return true;
+            if (!Number.isInteger(value) || value < 1) {
+                throw new Error('Parent location ID must be a positive integer or null');
+            }
+            return true;
+        }),
+    body('address')
+        .optional()
+        .trim()
+        .isLength({ max: 500 }).withMessage('Address cannot exceed 500 characters'),
+    body('city')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('City must be between 2 and 100 characters'),
+    body('state')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('State must be between 2 and 100 characters'),
+    body('country')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('Country must be between 2 and 100 characters'),
+    body('pincode')
+        .optional()
+        .trim()
+        .isLength({ min: 4, max: 20 }).withMessage('Pincode must be between 4 and 20 characters'),
+    body('phone')
+        .optional()
+        .trim()
+        .matches(/^\+?[1-9]\d{6,14}$/).withMessage('Invalid phone number format'),
+    body('email')
+        .optional()
+        .trim()
+        .isEmail().withMessage('Invalid email format')
+        .normalizeEmail(),
+    body('is_headquarters')
+        .optional()
+        .isBoolean().withMessage('is_headquarters must be a boolean value'),
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
+    body('status')
+        .optional()
+        .isIn(['active', 'inactive']).withMessage('Status must be either active or inactive'),
+    validate
+];
+
+const locationIdValidation = [
+    param('id')
+        .isInt({ min: 1 }).withMessage('Invalid location ID'),
+    validate
+];
+
+const createDesignationValidation = [
+    body('designation_name')
+        .trim()
+        .notEmpty().withMessage('Designation name is required')
+        .isLength({ min: 2, max: 100 }).withMessage('Designation name must be between 2 and 100 characters')
+        .matches(/^[a-zA-Z0-9\s\-_&()]+$/).withMessage('Designation name can only contain letters, numbers, spaces, hyphens, underscores, ampersands, and parentheses'),
+    body('designation_code')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 20 }).withMessage('Designation code must be between 2 and 20 characters')
+        .matches(/^[A-Z0-9_]+$/).withMessage('Designation code must contain only uppercase letters, numbers, and underscores')
+        .custom((value) => {
+            if (value && !/^[A-Z][A-Z0-9_]*$/.test(value)) {
+                throw new Error('Designation code must start with an uppercase letter');
+            }
+            return true;
+        }),
+    body('department_id')
+        .optional()
+        .isInt({ min: 1 }).withMessage('Department ID must be a positive integer'),
+    body('grade_level')
+        .optional()
+        .isInt({ min: 1, max: 20 }).withMessage('Grade level must be between 1 and 20'),
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
+    body('status')
+        .optional()
+        .isIn(['active', 'inactive']).withMessage('Status must be either active or inactive'),
+    validate
+];
+
+const updateDesignationValidation = [
+    param('id')
+        .isInt({ min: 1 }).withMessage('Invalid designation ID'),
+    body('designation_name')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 }).withMessage('Designation name must be between 2 and 100 characters')
+        .matches(/^[a-zA-Z0-9\s\-_&()]+$/).withMessage('Designation name can only contain letters, numbers, spaces, hyphens, underscores, ampersands, and parentheses'),
+    body('designation_code')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 20 }).withMessage('Designation code must be between 2 and 20 characters')
+        .matches(/^[A-Z0-9_]+$/).withMessage('Designation code must contain only uppercase letters, numbers, and underscores')
+        .custom((value) => {
+            if (value && !/^[A-Z][A-Z0-9_]*$/.test(value)) {
+                throw new Error('Designation code must start with an uppercase letter');
+            }
+            return true;
+        }),
+    body('department_id')
+        .optional()
+        .isInt({ min: 1 }).withMessage('Department ID must be a positive integer'),
+    body('grade_level')
+        .optional()
+        .isInt({ min: 1, max: 20 }).withMessage('Grade level must be between 1 and 20'),
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
+    body('status')
+        .optional()
+        .isIn(['active', 'inactive']).withMessage('Status must be either active or inactive'),
+    validate
+];
+
+const designationIdValidation = [
+    param('id')
+        .isInt({ min: 1 }).withMessage('Invalid designation ID'),
+    validate
+];
+
 module.exports = {
     validate,
     registerValidation,
@@ -284,5 +496,11 @@ module.exports = {
     paginationValidation,
     createDepartmentValidation,
     updateDepartmentValidation,
-    departmentIdValidation
+    departmentIdValidation,
+    createLocationValidation,
+    updateLocationValidation,
+    locationIdValidation,
+    createDesignationValidation,
+    updateDesignationValidation,
+    designationIdValidation
 };

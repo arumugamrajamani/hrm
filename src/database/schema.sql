@@ -198,6 +198,65 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     INDEX idx_request_id (request_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Create locations_master table
+CREATE TABLE locations_master (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    location_name VARCHAR(100) NOT NULL,
+    location_code VARCHAR(20) NOT NULL UNIQUE,
+    parent_location_id INT NULL,
+    address TEXT NULL,
+    city VARCHAR(100) NULL,
+    state VARCHAR(100) NULL,
+    country VARCHAR(100) DEFAULT 'India',
+    pincode VARCHAR(20) NULL,
+    phone VARCHAR(20) NULL,
+    email VARCHAR(100) NULL,
+    is_headquarters BOOLEAN DEFAULT FALSE,
+    description TEXT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_location_id) REFERENCES locations_master(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_location_name (location_name),
+    INDEX idx_location_code (location_code),
+    INDEX idx_parent_location_id (parent_location_id),
+    INDEX idx_city (city),
+    INDEX idx_state (state),
+    INDEX idx_status (status),
+    INDEX idx_is_headquarters (is_headquarters),
+    INDEX idx_created_by (created_by),
+    INDEX idx_updated_by (updated_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create designations_master table
+CREATE TABLE designations_master (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    designation_name VARCHAR(100) NOT NULL,
+    designation_code VARCHAR(20) NOT NULL UNIQUE,
+    department_id INT NULL,
+    grade_level INT NULL,
+    description TEXT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_designation_name (designation_name),
+    INDEX idx_designation_code (designation_code),
+    INDEX idx_department_id (department_id),
+    INDEX idx_grade_level (grade_level),
+    INDEX idx_status (status),
+    INDEX idx_created_by (created_by),
+    INDEX idx_updated_by (updated_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert default roles
 INSERT INTO roles (name, permissions) VALUES
 ('Super Admin', '["all"]'),

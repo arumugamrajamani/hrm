@@ -9,6 +9,21 @@
             "date": 1774878583678,
             "name": "D:\\hrm-newbknd\\hrm\\logs\\audit-2026-03-30.log",
             "hash": "a89e428eef93266cd6b468e66a3b02a154821c5f687e5f2a4c425d3de4a8eca0"
+        },
+        {
+            "date": 1774938477731,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\audit-2026-03-31.log",
+            "hash": "16cbe2c73742e31ac7f05481631309235b3ca8d50dc9ead29f0f4020afe993ad"
+        },
+        {
+            "date": 1776185192121,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\audit-2026-04-14.log",
+            "hash": "7c53af6b35c7778abe9dbf7042f22e79336d51294f30be386dafc1a22ae47423"
+        },
+        {
+            "date": 1776260468016,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\audit-2026-04-15.log",
+            "hash": "6572dae2e244689d52cca6559224659f6be273e27e0c1734a10a4d4f4bfc7983"
         }
     ],
     "hashType": "sha256"

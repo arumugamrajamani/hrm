@@ -120,7 +120,7 @@ const generalLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 60,
+    max: 5000,
     message: {
         success: false,
         message: 'API rate limit exceeded. Please try again later.'
