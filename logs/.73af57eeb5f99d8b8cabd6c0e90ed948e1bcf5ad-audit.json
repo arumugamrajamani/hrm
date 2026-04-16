@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "D:\\hrm-newbknd\\hrm\\logs\\.73af57eeb5f99d8b8cabd6c0e90ed948e1bcf5ad-audit.json",
+    "files": [
+        {
+            "date": 1776276348167,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\security-2026-04-15.log",
+            "hash": "74bd500590f598f908d49f2c571449c353b66c5065d30cb7d0d9a9ca1060e3cf"
+        },
+        {
+            "date": 1776319635134,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\security-2026-04-16.log",
+            "hash": "55560ac671cf716a93050976c0f03756fbf1a0a0187097a56b75930bf03314ca"
+        }
+    ],
+    "hashType": "sha256"
+}

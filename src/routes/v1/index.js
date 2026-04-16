@@ -10,6 +10,7 @@ const educationRoutes = require('../educationRoutes');
 const courseRoutes = require('../courseRoutes');
 const educationCourseMapRoutes = require('../educationCourseMapRoutes');
 const auditRoutes = require('../auditRoutes');
+const systemRoutes = require('../systemRoutes');
 
 router.use('/auth', authRoutes);
 
@@ -28,5 +29,7 @@ router.use('/courses', courseRoutes);
 router.use('/education-course', educationCourseMapRoutes);
 
 router.use('/audit-logs', auditRoutes);
+
+router.use('/system', systemRoutes);
 
 module.exports = router;

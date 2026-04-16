@@ -1,4 +1,4 @@
-const { verifyAccessToken } = require('../config/jwt');
+const jwtService = require('../config/jwt');
 const { errorResponse } = require('../utils/helpers');
 
 const authMiddleware = async (req, res, next) => {
@@ -12,7 +12,7 @@ const authMiddleware = async (req, res, next) => {
         const token = authHeader.split(' ')[1];
 
         try {
-            const decoded = verifyAccessToken(token);
+            const decoded = jwtService.verifyAccessToken(token);
 
             if (decoded.type !== 'access') {
                 return errorResponse(res, 'Invalid token type', 401);
@@ -50,7 +50,7 @@ const optionalAuth = async (req, res, next) => {
         const token = authHeader.split(' ')[1];
 
         try {
-            const decoded = verifyAccessToken(token);
+            const decoded = jwtService.verifyAccessToken(token);
             req.user = {
                 id: decoded.id,
                 email: decoded.email,
