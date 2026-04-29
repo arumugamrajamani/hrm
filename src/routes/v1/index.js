@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authRoutes = require('../authRoutes');
 const userRoutes = require('../userRoutes');
+const employeeRoutes = require('../employeeRoutes');
 const departmentRoutes = require('../departmentRoutes');
 const locationRoutes = require('../locationRoutes');
 const designationRoutes = require('../designationRoutes');
@@ -15,6 +16,8 @@ const systemRoutes = require('../systemRoutes');
 router.use('/auth', authRoutes);
 
 router.use('/users', userRoutes);
+
+router.use('/employees', employeeRoutes);
 
 router.use('/departments', departmentRoutes);
 

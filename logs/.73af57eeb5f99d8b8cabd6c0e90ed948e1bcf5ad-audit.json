@@ -14,6 +14,16 @@
             "date": 1776319635134,
             "name": "D:\\hrm-newbknd\\hrm\\logs\\security-2026-04-16.log",
             "hash": "55560ac671cf716a93050976c0f03756fbf1a0a0187097a56b75930bf03314ca"
+        },
+        {
+            "date": 1777393530650,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\security-2026-04-28.log",
+            "hash": "57f98f7da927786ef0e38b7a5a638194ea21182cd285e4cedcc4e2647b50192b"
+        },
+        {
+            "date": 1777459124246,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\security-2026-04-29.log",
+            "hash": "d2440907b9ee655f594e8c0b1edfdd56156e4c955a4e0a1f0ff73c9751da9e54"
         }
     ],
     "hashType": "sha256"

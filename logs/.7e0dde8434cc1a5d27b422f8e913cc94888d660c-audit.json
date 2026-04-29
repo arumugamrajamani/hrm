@@ -14,6 +14,16 @@
             "date": 1776319634945,
             "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-04-16.log",
             "hash": "5451a1e64d55047f2701d619f277466c440917895235f4a6c6997f2dff710d0b"
+        },
+        {
+            "date": 1777393530546,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-04-28.log",
+            "hash": "10039f339ca8e201a60923e9e72cd8ac8561e9c46fba1b2973ad9babcc7197ca"
+        },
+        {
+            "date": 1777459124220,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-04-29.log",
+            "hash": "12fece4b593d992838087b08d8b85431a6907020e2cb6908873e5ce44d73ae96"
         }
     ],
     "hashType": "sha256"

@@ -18,34 +18,38 @@ const transformUsersWithProfileUrl = (users) => {
 class UserModel {
     static async findAll({ page = 1, limit = 10, search = '', status = '' }) {
         const offset = (page - 1) * limit;
-        let whereClause = "WHERE u.status != 'deleted'";
+        let whereClause = "WHERE 1=1";
         const params = [];
 
         if (search) {
-            whereClause += " AND (u.username LIKE ? OR u.email LIKE ? OR u.mobile LIKE ?)";
+            whereClause += " AND (u.username LIKE ? OR u.email LIKE ? OR u.mobile LIKE ? OR e.employee_code LIKE ? OR e.first_name LIKE ?)";
             const searchTerm = `%${search}%`;
-            params.push(searchTerm, searchTerm, searchTerm);
+            params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
         }
 
         if (status) {
-            whereClause += " AND u.status = ?";
+            whereClause += " AND u.account_status = ?";
             params.push(status);
         }
 
         const countQuery = `
             SELECT COUNT(*) as total 
-            FROM users u 
+            FROM users u
+            LEFT JOIN employees e ON u.employee_id = e.id
             ${whereClause}
         `;
 
         const dataQuery = `
             SELECT 
-                u.id, u.username, u.email, u.mobile, u.status, 
-                u.profile_photo, u.two_factor_enabled, u.password_changed_at,
+                u.id, u.employee_id, u.username, u.email, u.mobile, u.account_status as status, 
+                u.profile_photo, u.two_factor_enabled, u.password_changed_at, u.last_login,
                 u.created_at, u.updated_at,
-                r.id as role_id, r.name as role_name
+                r.id as role_id, r.name as role_name,
+                e.employee_code, e.first_name, e.last_name,
+                CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) as employee_name
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
+            LEFT JOIN employees e ON u.employee_id = e.id
             ${whereClause}
             ORDER BY u.created_at DESC
             LIMIT ? OFFSET ?
@@ -66,13 +70,16 @@ class UserModel {
     static async findById(id) {
         const query = `
             SELECT 
-                u.id, u.username, u.email, u.mobile, u.status, 
-                u.profile_photo, u.two_factor_enabled, u.password_changed_at,
+                u.id, u.employee_id, u.username, u.email, u.mobile, u.account_status as status, 
+                u.profile_photo, u.two_factor_enabled, u.password_changed_at, u.last_login,
                 u.password, u.created_at, u.updated_at,
-                r.id as role_id, r.name as role_name
+                r.id as role_id, r.name as role_name,
+                e.employee_code, e.first_name, e.last_name,
+                CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) as employee_name
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
-            WHERE u.id = ? AND u.status != 'deleted'
+            LEFT JOIN employees e ON u.employee_id = e.id
+            WHERE u.id = ? AND u.account_status != 'deleted'
         `;
         const [rows] = await pool.query(query, [id]);
         return transformUserWithProfileUrl(rows[0] || null);
@@ -81,10 +88,13 @@ class UserModel {
     static async findByEmail(email) {
         const query = `
             SELECT 
-                u.*, r.name as role_name
+                u.*, r.name as role_name,
+                e.employee_code, e.first_name, e.last_name,
+                CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) as employee_name
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
-            WHERE u.email = ? AND u.status != 'deleted'
+            LEFT JOIN employees e ON u.employee_id = e.id
+            WHERE u.email = ? AND u.account_status != 'deleted'
         `;
         const [rows] = await pool.query(query, [email]);
         return transformUserWithProfileUrl(rows[0] || null);
@@ -93,29 +103,32 @@ class UserModel {
     static async findByUsername(username) {
         const query = `
             SELECT 
-                u.*, r.name as role_name
+                u.*, r.name as role_name,
+                e.employee_code, e.first_name, e.last_name,
+                CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) as employee_name
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
-            WHERE u.username = ? AND u.status != 'deleted'
+            LEFT JOIN employees e ON u.employee_id = e.id
+            WHERE u.username = ? AND u.account_status != 'deleted'
         `;
         const [rows] = await pool.query(query, [username]);
         return transformUserWithProfileUrl(rows[0] || null);
     }
 
     static async create(userData) {
-        const { username, email, mobile, password, role_id, status = 'active', profile_photo } = userData;
+        const { username, email, mobile, password, role_id, employee_id, status = 'active', profile_photo, created_by } = userData;
         
         const query = `
-            INSERT INTO users (username, email, mobile, password, role_id, status, profile_photo, password_changed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO users (username, email, mobile, password, role_id, employee_id, account_status, profile_photo, password_changed_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
         `;
         
-        const [result] = await pool.query(query, [username, email, mobile, password, role_id, status, profile_photo || null]);
+        const [result] = await pool.query(query, [username, email, mobile, password, role_id, employee_id || null, status, profile_photo || null, created_by || null]);
         return result.insertId;
     }
 
     static async update(id, userData) {
-        const allowedFields = ['username', 'email', 'mobile', 'role_id', 'status', 'profile_photo'];
+        const allowedFields = ['username', 'email', 'mobile', 'role_id', 'account_status', 'profile_photo', 'updated_by'];
         const updates = [];
         const params = [];
 
@@ -146,25 +159,25 @@ class UserModel {
     }
 
     static async softDelete(id) {
-        const query = `UPDATE users SET status = 'deleted', updated_at = NOW() WHERE id = ?`;
+        const query = `UPDATE users SET account_status = 'deleted', updated_at = NOW() WHERE id = ?`;
         const [result] = await pool.query(query, [id]);
         return result.affectedRows > 0;
     }
 
     static async activate(id) {
-        const query = `UPDATE users SET status = 'active', updated_at = NOW() WHERE id = ?`;
+        const query = `UPDATE users SET account_status = 'active', updated_at = NOW() WHERE id = ?`;
         const [result] = await pool.query(query, [id]);
         return result.affectedRows > 0;
     }
 
     static async deactivate(id) {
-        const query = `UPDATE users SET status = 'inactive', updated_at = NOW() WHERE id = ?`;
+        const query = `UPDATE users SET account_status = 'inactive', updated_at = NOW() WHERE id = ?`;
         const [result] = await pool.query(query, [id]);
         return result.affectedRows > 0;
     }
 
     static async block(id) {
-        const query = `UPDATE users SET status = 'blocked', updated_at = NOW() WHERE id = ?`;
+        const query = `UPDATE users SET account_status = 'blocked', updated_at = NOW() WHERE id = ?`;
         const [result] = await pool.query(query, [id]);
         return result.affectedRows > 0;
     }
@@ -1590,7 +1603,7 @@ class DesignationModel {
     }
 
     static async findByDepartmentId(departmentId) {
-        const query = 'SELECT * FROM designations_master WHERE department_id = ? AND status = "active" ORDER BY designation_name ASC';
+        const query = 'SELECT * FROM designations_master WHERE department_id = ? AND status = \'active\' ORDER BY designation_name ASC';
         const [rows] = await pool.query(query, [departmentId]);
         return rows;
     }
@@ -1666,7 +1679,7 @@ class DesignationModel {
     }
 
     static async hasEmployees(id) {
-        const query = 'SELECT COUNT(*) as count FROM employees WHERE designation_id = ? AND status = "active"';
+        const query = 'SELECT COUNT(*) as count FROM employees WHERE designation_id = ? AND deleted_at IS NULL';
         const [rows] = await pool.query(query, [id]);
         return rows[0].count > 0;
     }
@@ -1717,6 +1730,15 @@ class DesignationModel {
     }
 }
 
+const EmployeeModel = require('./employeeModel');
+const EmployeeJobModel = require('./employeeJobModel');
+const EmployeeAddressModel = require('./employeeAddressModel');
+const EmployeeBankModel = require('./employeeBankModel');
+const EmployeeEducationModel = require('./employeeEducationModel');
+const EmployeeExperienceModel = require('./employeeExperienceModel');
+const DocumentsMasterModel = require('./documentsMasterModel');
+const EmployeeDocumentModel = require('./employeeDocumentModel');
+
 module.exports = {
     UserModel,
     RoleModel,
@@ -1729,5 +1751,13 @@ module.exports = {
     CourseModel,
     EducationCourseMapModel,
     LocationModel,
-    DesignationModel
+    DesignationModel,
+    EmployeeModel,
+    EmployeeJobModel,
+    EmployeeAddressModel,
+    EmployeeBankModel,
+    EmployeeEducationModel,
+    EmployeeExperienceModel,
+    DocumentsMasterModel,
+    EmployeeDocumentModel
 };

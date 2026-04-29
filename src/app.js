@@ -237,6 +237,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customSiteTitle: 'HRM API Documentation'
 }));
 
+app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+});
+
 app.use('/api/v1', generalLimiter, require('./routes/v1'));
 
 app.use(notFoundHandler);

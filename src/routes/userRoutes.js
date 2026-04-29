@@ -47,7 +47,7 @@ router.use(authMiddleware);
  *         name: status
  *         schema:
  *           type: string
- *           enum: [active, inactive]
+ *           enum: [active, inactive, blocked, deleted]
  *         description: Filter by user status
  *     responses:
  *       200:

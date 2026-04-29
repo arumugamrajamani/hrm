@@ -104,6 +104,35 @@ npm start
 | POST | /api/auth/verify-2fa-setup | Verify 2FA setup |
 | POST | /api/auth/disable-2fa | Disable 2FA |
 
+### Employee Routes
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/employees | List employees (with pagination, search, filters) |
+| POST | /api/employees | Create new employee |
+| GET | /api/employees/:id | Get employee by ID |
+| PUT | /api/employees/:id | Update employee |
+| DELETE | /api/employees/:id | Soft delete employee |
+| PATCH | /api/employees/:id/restore | Restore deleted employee |
+| GET | /api/employees/:id/profile | Get full employee profile |
+| GET | /api/employees/:id/job-details | Get job details history |
+| GET | /api/employees/:id/job-details/current | Get current job details |
+| POST | /api/employees/:id/job-details | Update job details (SCD Type 2) |
+| GET | /api/employees/:id/addresses | Get address history |
+| GET | /api/employees/:id/addresses/current | Get current addresses |
+| POST | /api/employees/:id/addresses | Add new address (SCD Type 2) |
+| GET | /api/employees/:id/bank-details | Get bank details history |
+| GET | /api/employees/:id/bank-details/current | Get current bank details |
+| POST | /api/employees/:id/bank-details | Add bank details (SCD Type 2) |
+| GET | /api/employees/:id/education | Get education records |
+| POST | /api/employees/:id/education | Add education record |
+| GET | /api/employees/:id/experience | Get experience records |
+| POST | /api/employees/:id/experience | Add experience record |
+| GET | /api/employees/:id/documents | Get documents |
+| POST | /api/employees/:id/documents | Upload document |
+| GET | /api/employees/:id/emergency-contacts | Get emergency contacts |
+| GET | /api/employees/:id/reporting-employees | Get reporting employees |
+
 ### User Routes
 
 | Method | Endpoint | Description |

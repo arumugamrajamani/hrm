@@ -65,11 +65,11 @@ This API uses JWT Bearer token authentication.
         },
         servers: [
             {
-                url: 'http://localhost:3000/api/v1',
+                url: 'http://localhost:3000',
                 description: 'Development server',
             },
             {
-                url: '{protocol}://{host}/api/v1',
+                url: '{protocol}://{host}',
                 description: 'Production server',
                 variables: {
                     protocol: {
@@ -85,6 +85,7 @@ This API uses JWT Bearer token authentication.
         tags: [
             { name: 'Auth', description: 'Authentication & Authorization' },
             { name: 'Users', description: 'User Management' },
+            { name: 'Employees', description: 'Employee Management' },
             { name: 'Departments', description: 'Department Management' },
             { name: 'Locations', description: 'Location Management' },
             { name: 'Designations', description: 'Designation Management' },
