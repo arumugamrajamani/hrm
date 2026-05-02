@@ -256,4 +256,22 @@ app.use((err, req, res, next) => {
     errorHandler(err, req, res, next);
 });
 
+// Initialize Performance Cron Job (runs daily to update cycle statuses and send notifications)
+if (process.env.NODE_ENV !== 'test') {
+    const performanceCronService = require('./services/performanceCronService');
+    const cronInterval = process.env.PERFORMANCE_CRON_INTERVAL || 24 * 60 * 60 * 1000; // Default: daily
+    performanceCronService.start(parseInt(cronInterval));
+    
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+        console.log('SIGTERM received, stopping performance cron job...');
+        performanceCronService.stop();
+    });
+    
+    process.on('SIGINT', () => {
+        console.log('SIGINT received, stopping performance cron job...');
+        performanceCronService.stop();
+    });
+}
+
 module.exports = app;

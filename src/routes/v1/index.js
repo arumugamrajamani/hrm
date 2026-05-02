@@ -12,6 +12,8 @@ const locationRoutes = require('../locationRoutes');
 const designationRoutes = require('../designationRoutes');
 const educationRoutes = require('../educationRoutes');
 const courseRoutes = require('../courseRoutes');
+const employmentTypeRoutes = require('../employmentTypeRoutes');
+const performanceRoutes = require('../performanceRoutes');
 const educationCourseMapRoutes = require('../educationCourseMapRoutes');
 const auditRoutes = require('../auditRoutes');
 const systemRoutes = require('../systemRoutes');
@@ -39,6 +41,10 @@ router.use('/designations', designationRoutes);
 router.use('/education', educationRoutes);
 
 router.use('/courses', courseRoutes);
+
+router.use('/employment-types', employmentTypeRoutes);
+
+router.use('/performance', performanceRoutes);
 
 router.use('/education-course', educationCourseMapRoutes);
 

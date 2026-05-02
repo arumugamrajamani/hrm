@@ -14,6 +14,11 @@
             "date": 1777707797529,
             "name": "D:\\hrm-newbknd\\hrm\\logs\\audit-2026-05-02.log",
             "hash": "bb5a293a7cad39e0926710b39440d5d412f5a95ef7cd50b11d716c2ee9ad5449"
+        },
+        {
+            "date": 1777746674461,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\audit-2026-05-03.log",
+            "hash": "e3c562e1310ad08139ca5b668e768a2d24448f6974a260547d8600278726e633"
         }
     ],
     "hashType": "sha256"
