@@ -1738,6 +1738,7 @@ const EmployeeEducationModel = require('./employeeEducationModel');
 const EmployeeExperienceModel = require('./employeeExperienceModel');
 const DocumentsMasterModel = require('./documentsMasterModel');
 const EmployeeDocumentModel = require('./employeeDocumentModel');
+const ShiftModel = require('./shiftModel');
 
 module.exports = {
     UserModel,
@@ -1759,5 +1760,6 @@ module.exports = {
     EmployeeEducationModel,
     EmployeeExperienceModel,
     DocumentsMasterModel,
-    EmployeeDocumentModel
+    EmployeeDocumentModel,
+    ShiftModel
 };

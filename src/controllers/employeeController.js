@@ -1,5 +1,5 @@
 const employeeService = require('../services/employeeService');
-const { successResponse, paginatedResponse, errorResponse } = require('../utils/helpers');
+const { successResponse, paginatedResponse, noDataResponse, errorResponse } = require('../utils/helpers');
 
 class EmployeeController {
     async getAllEmployees(req, res, next) {
@@ -14,6 +14,10 @@ class EmployeeController {
                 department,
                 location
             });
+
+            if (!result.employees || result.employees.length === 0) {
+                return noDataResponse(res, 'No employees found');
+            }
 
             return paginatedResponse(
                 res,
@@ -30,6 +34,9 @@ class EmployeeController {
         try {
             const { id } = req.params;
             const employee = await employeeService.getEmployeeById(parseInt(id));
+            if (!employee) {
+                return noDataResponse(res, 'Employee not found');
+            }
             return successResponse(res, employee, 'Employee retrieved successfully');
         } catch (error) {
             next(error);
@@ -70,6 +77,66 @@ class EmployeeController {
             
             const employee = await employeeService.updateEmployee(parseInt(id), employeeData);
             return successResponse(res, employee, 'Employee updated successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async changeLifecycleState(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { to_state, reason, remarks, effective_date } = req.body;
+            
+            const employee = await employeeService.changeLifecycleState(parseInt(id), {
+                toState,
+                reason,
+                remarks,
+                changedBy: req.user?.id || null,
+                effectiveDate: effective_date || new Date()
+            });
+            
+            return successResponse(res, employee, `Employee state changed to ${to_state} successfully`);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getLifecycleHistory(req, res, next) {
+        try {
+            const { id } = req.params;
+            const history = await employeeService.getLifecycleHistory(parseInt(id));
+            if (!history || history.length === 0) {
+                return noDataResponse(res, 'No lifecycle history found');
+            }
+            return successResponse(res, history, 'Lifecycle history retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async addJobChange(req, res, next) {
+        try {
+            const { id } = req.params;
+            const jobChangeData = {
+                ...req.body,
+                created_by: req.user?.id || null
+            };
+            
+            const result = await employeeService.addJobChange(parseInt(id), jobChangeData);
+            return successResponse(res, result, 'Job change recorded successfully', 201);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getJobChanges(req, res, next) {
+        try {
+            const { id } = req.params;
+            const changes = await employeeService.getJobChanges(parseInt(id));
+            if (!changes || changes.length === 0) {
+                return noDataResponse(res, 'No job changes found');
+            }
+            return successResponse(res, changes, 'Job changes retrieved successfully');
         } catch (error) {
             next(error);
         }
@@ -254,6 +321,9 @@ class EmployeeController {
         try {
             const { id } = req.params;
             const documents = await employeeService.getDocuments(parseInt(id));
+            if (!documents || documents.length === 0) {
+                return noDataResponse(res, 'No documents found');
+            }
             return successResponse(res, documents, 'Documents retrieved successfully');
         } catch (error) {
             next(error);
@@ -279,6 +349,9 @@ class EmployeeController {
         try {
             const { id } = req.params;
             const contacts = await employeeService.getEmergencyContacts(parseInt(id));
+            if (!contacts || contacts.length === 0) {
+                return noDataResponse(res, 'No emergency contacts found');
+            }
             return successResponse(res, contacts, 'Emergency contacts retrieved successfully');
         } catch (error) {
             next(error);
@@ -289,6 +362,9 @@ class EmployeeController {
         try {
             const { id } = req.params;
             const employees = await employeeService.getReportingEmployees(parseInt(id));
+            if (!employees || employees.length === 0) {
+                return noDataResponse(res, 'No reporting employees found');
+            }
             return successResponse(res, employees, 'Reporting employees retrieved successfully');
         } catch (error) {
             next(error);

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const educationCourseMapController = require('../controllers/educationCourseMapController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { validate, validateParams } = require('../validations/joiValidator');
 const { createMappingSchema, mappingIdSchema } = require('../validations/educationCourseMapValidation');
 const { generalLimiter } = require('../middlewares/rateLimiter');
@@ -166,7 +166,7 @@ router.get('/:id', validateParams(mappingIdSchema), educationCourseMapController
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', isAdmin, validate(createMappingSchema), educationCourseMapController.createMapping);
+router.post('/', checkPermission('master.write'), validate(createMappingSchema), educationCourseMapController.createMapping);
 
 /**
  * @swagger
@@ -220,6 +220,6 @@ router.post('/', isAdmin, validate(createMappingSchema), educationCourseMapContr
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', isAdmin, validateParams(mappingIdSchema), educationCourseMapController.deleteMapping);
+router.delete('/:id', checkPermission('master.delete'), validateParams(mappingIdSchema), educationCourseMapController.deleteMapping);
 
 module.exports = router;

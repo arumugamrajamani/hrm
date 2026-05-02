@@ -19,7 +19,7 @@ class EmployeeModel {
         return `EMP${String(newNum).padStart(3, '0')}`;
     }
 
-    static async findAll({ page = 1, limit = 10, search = '', status = '', department = '', location = '' }) {
+    static async findAll({ page = 1, limit = 10, search = '', status = '', department = '', location = '', lifecycle_state = '' }) {
         const offset = (page - 1) * limit;
         let whereClause = 'WHERE e.deleted_at IS NULL';
         const params = [];
@@ -33,6 +33,11 @@ class EmployeeModel {
         if (status) {
             whereClause += " AND u.account_status = ?";
             params.push(status);
+        }
+
+        if (lifecycle_state) {
+            whereClause += " AND e.lifecycle_state = ?";
+            params.push(lifecycle_state);
         }
 
         if (department) {
@@ -160,7 +165,7 @@ class EmployeeModel {
     }
 
     static async update(id, employeeData) {
-        const allowedFields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'profile_photo', 'updated_by'];
+        const allowedFields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'profile_photo', 'lifecycle_state', 'updated_by'];
         const updates = [];
         const params = [];
 
@@ -321,59 +326,154 @@ class EmployeeModel {
         return rows;
     }
 
-    static async getEmergencyContacts(employeeId) {
+    static async changeLifecycleState(employeeId, { fromState, toState, reason, remarks, changedBy, effectiveDate = new Date() }) {
+        const conn = await pool.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            const [currentEmployee] = await conn.query(
+                'SELECT lifecycle_state FROM employees WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+                [employeeId]
+            );
+
+            if (currentEmployee.length === 0) {
+                throw new Error('Employee not found');
+            }
+
+            const currentState = currentState = currentEmployee[0].lifecycle_state || 'draft';
+
+            const [stateCheck] = await conn.query(
+                'SELECT allowed_transitions FROM employee_lifecycle_states WHERE state_code = ?',
+                [currentState]
+            );
+
+            if (stateCheck.length > 0 && stateCheck[0].allowed_transitions) {
+                const allowedTransitions = JSON.parse(stateCheck[0].allowed_transitions);
+                if (!allowedTransitions.includes(toState)) {
+                    throw new Error(`Invalid state transition from ${currentState} to ${toState}`);
+                }
+            }
+
+            await conn.query(
+                'UPDATE employees SET lifecycle_state = ?, updated_at = NOW(), updated_by = ? WHERE id = ?',
+                [toState, changedBy, employeeId]
+            );
+
+            await conn.query(
+                `INSERT INTO employee_lifecycle_history 
+                (employee_id, from_state, to_state, changed_by, changed_at, reason, remarks, effective_date, approval_status, created_at)
+                VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, 'approved', NOW())`,
+                [employeeId, currentState, toState, changedBy, reason, remarks, effectiveDate]
+            );
+
+            await conn.commit();
+            return true;
+        } catch (error) {
+            await conn.rollback();
+            throw error;
+        } finally {
+            conn.release();
+        }
+    }
+
+    static async getLifecycleHistory(employeeId) {
         const query = `
-            SELECT * FROM employee_emergency_contacts
-            WHERE employee_id = ?
-            ORDER BY priority_order ASC
+            SELECT 
+                lh.*,
+                el.state_name as to_state_name,
+                el.description as to_state_description,
+                u.username as changed_by_username,
+                au.username as approved_by_username
+            FROM employee_lifecycle_history lh
+            LEFT JOIN employee_lifecycle_states el ON lh.to_state = el.state_code
+            LEFT JOIN users u ON lh.changed_by = u.id
+            LEFT JOIN users au ON lh.approved_by = au.id
+            WHERE lh.employee_id = ?
+            ORDER BY lh.effective_date DESC
         `;
         const [rows] = await pool.query(query, [employeeId]);
         return rows;
     }
 
-    static async getReportingEmployees(managerId) {
+    static async addJobChange(jobChangeData) {
+        const {
+            employee_id,
+            change_type,
+            from_department_id,
+            to_department_id,
+            from_designation_id,
+            to_designation_id,
+            from_location_id,
+            to_location_id,
+            from_reporting_manager_id,
+            to_reporting_manager_id,
+            from_employment_type,
+            to_employment_type,
+            from_salary,
+            to_salary,
+            effective_date,
+            reason,
+            remarks,
+            created_by
+        } = jobChangeData;
+
         const query = `
-            SELECT 
-                e.id, e.employee_code, e.first_name, e.last_name,
-                CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) AS full_name,
-                dm.designation_name, d.department_name
-            FROM employees e
-            JOIN employee_job_details jd ON e.id = jd.employee_id AND jd.is_current = TRUE
-            LEFT JOIN designations_master dm ON jd.designation_id = dm.id
-            LEFT JOIN departments d ON jd.department_id = d.id
-            WHERE jd.reporting_manager_id = ? AND e.deleted_at IS NULL
+            INSERT INTO employee_job_changes (
+                employee_id, change_type,
+                from_department_id, to_department_id,
+                from_designation_id, to_designation_id,
+                from_location_id, to_location_id,
+                from_reporting_manager_id, to_reporting_manager_id,
+                from_employment_type, to_employment_type,
+                from_salary, to_salary,
+                effective_date, reason, remarks, created_by, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
-        const [rows] = await pool.query(query, [managerId]);
-        return rows;
-    }
 
-    static async getFullProfile(employeeId) {
-        const employee = await EmployeeModel.findById(employeeId);
-        if (!employee) return null;
-
-        const [jobDetails, addresses, bankDetails, education, experience, documents, emergencyContacts] = await Promise.all([
-            EmployeeModel.getJobDetails(employeeId),
-            EmployeeModel.getAddresses(employeeId),
-            EmployeeModel.getBankDetails(employeeId),
-            EmployeeModel.getEducation(employeeId),
-            EmployeeModel.getExperience(employeeId),
-            EmployeeModel.getDocuments(employeeId),
-            EmployeeModel.getEmergencyContacts(employeeId)
+        const [result] = await pool.query(query, [
+            employee_id, change_type,
+            from_department_id, to_department_id,
+            from_designation_id, to_designation_id,
+            from_location_id, to_location_id,
+            from_reporting_manager_id, to_reporting_manager_id,
+            from_employment_type, to_employment_type,
+            from_salary, to_salary,
+            effective_date, reason, remarks, created_by
         ]);
 
-        return {
-            ...employee,
-            job_details: jobDetails,
-            current_job: jobDetails.find(j => j.is_current) || null,
-            addresses,
-            current_addresses: addresses.filter(a => a.is_current),
-            bank_details: bankDetails,
-            current_bank: bankDetails.find(b => b.is_current) || null,
-            education,
-            experience,
-            documents,
-            emergency_contacts: emergencyContacts
-        };
+        return result.insertId;
+    }
+
+    static async getJobChanges(employeeId) {
+        const query = `
+            SELECT 
+                jc.*,
+                d1.department_name as from_department_name,
+                d2.department_name as to_department_name,
+                ds1.designation_name as from_designation_name,
+                ds2.designation_name as to_designation_name,
+                l1.location_name as from_location_name,
+                l2.location_name as to_location_name,
+                CONCAT(e1.first_name, ' ', COALESCE(e1.last_name, '')) as from_manager_name,
+                CONCAT(e2.first_name, ' ', COALESCE(e2.last_name, '')) as to_manager_name,
+                u1.username as created_by_username,
+                u2.username as approved_by_username
+            FROM employee_job_changes jc
+            LEFT JOIN departments d1 ON jc.from_department_id = d1.id
+            LEFT JOIN departments d2 ON jc.to_department_id = d2.id
+            LEFT JOIN designations_master ds1 ON jc.from_designation_id = ds1.id
+            LEFT JOIN designations_master ds2 ON jc.to_designation_id = ds2.id
+            LEFT JOIN locations_master l1 ON jc.from_location_id = l1.id
+            LEFT JOIN locations_master l2 ON jc.to_location_id = l2.id
+            LEFT JOIN employees e1 ON jc.from_reporting_manager_id = e1.id
+            LEFT JOIN employees e2 ON jc.to_reporting_manager_id = e2.id
+            LEFT JOIN users u1 ON jc.created_by = u1.id
+            LEFT JOIN users u2 ON jc.approved_by = u2.id
+            WHERE jc.employee_id = ?
+            ORDER BY jc.effective_date DESC
+        `;
+        const [rows] = await pool.query(query, [employeeId]);
+        return rows;
     }
 }
 

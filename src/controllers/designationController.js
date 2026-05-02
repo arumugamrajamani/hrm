@@ -1,5 +1,5 @@
 const designationService = require('../services/designationService');
-const { successResponse, paginatedResponse } = require('../utils/helpers');
+const { successResponse, paginatedResponse, noDataResponse } = require('../utils/helpers');
 
 class DesignationController {
     async getAllDesignations(req, res, next) {
@@ -12,6 +12,10 @@ class DesignationController {
                 search,
                 status
             });
+
+            if (!result.designations || result.designations.length === 0) {
+                return noDataResponse(res, 'No designations found');
+            }
 
             return paginatedResponse(
                 res,
@@ -28,6 +32,10 @@ class DesignationController {
         try {
             const { id } = req.params;
             const designation = await designationService.getDesignationById(parseInt(id));
+            
+            if (!designation) {
+                return noDataResponse(res, 'Designation not found');
+            }
             return successResponse(res, designation, 'Designation retrieved successfully');
         } catch (error) {
             next(error);
@@ -38,6 +46,10 @@ class DesignationController {
         try {
             const { departmentId } = req.params;
             const designations = await designationService.getDesignationsByDepartment(parseInt(departmentId));
+            
+            if (!designations || designations.length === 0) {
+                return noDataResponse(res, 'No designations found for this department');
+            }
             return successResponse(res, designations, 'Designations retrieved successfully');
         } catch (error) {
             next(error);
@@ -77,6 +89,10 @@ class DesignationController {
         try {
             const { id } = req.params;
             const result = await designationService.deleteDesignation(parseInt(id));
+            
+            if (!result) {
+                return noDataResponse(res, 'Designation not found');
+            }
             return successResponse(res, result, 'Designation deleted successfully');
         } catch (error) {
             next(error);
@@ -87,6 +103,10 @@ class DesignationController {
         try {
             const { id } = req.params;
             const designation = await designationService.activateDesignation(parseInt(id));
+            
+            if (!designation) {
+                return noDataResponse(res, 'Designation not found');
+            }
             return successResponse(res, designation, 'Designation activated successfully');
         } catch (error) {
             next(error);
@@ -97,6 +117,10 @@ class DesignationController {
         try {
             const { id } = req.params;
             const designation = await designationService.deactivateDesignation(parseInt(id));
+            
+            if (!designation) {
+                return noDataResponse(res, 'Designation not found');
+            }
             return successResponse(res, designation, 'Designation deactivated successfully');
         } catch (error) {
             next(error);
@@ -105,8 +129,7 @@ class DesignationController {
 
     async generateDesignationCode(req, res, next) {
         try {
-            const { prefix = 'DES' } = req.query;
-            const code = await designationService.generateDesignationCode(prefix);
+            const code = await designationService.generateDesignationCode();
             return successResponse(res, { designation_code: code }, 'Designation code generated successfully');
         } catch (error) {
             next(error);

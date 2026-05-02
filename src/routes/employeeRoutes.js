@@ -8,7 +8,7 @@ router.use(authMiddleware);
 
 /**
  * @swagger
- * /employees:
+ * /api/v1/employees:
  *   get:
  *     summary: Get all employees
  *     tags: [Employees]
@@ -57,7 +57,7 @@ router.get('/', auditLog('READ', 'employees'), employeeController.getAllEmployee
 
 /**
  * @swagger
- * /employees:
+ * /api/v1/employees:
  *   post:
  *     summary: Create new employee
  *     tags: [Employees]
@@ -96,7 +96,7 @@ router.post('/', auditLog('CREATE', 'employees'), employeeController.createEmplo
 
 /**
  * @swagger
- * /employees/{id}:
+ * /api/v1/employees/{id}:
  *   get:
  *     summary: Get employee by ID
  *     tags: [Employees]
@@ -121,7 +121,7 @@ router.get('/:id', auditLog('READ', 'employees'), employeeController.getEmployee
 
 /**
  * @swagger
- * /employees/{id}:
+ * /api/v1/employees/{id}:
  *   put:
  *     summary: Update employee
  *     tags: [Employees]
@@ -164,7 +164,7 @@ router.put('/:id', auditLog('UPDATE', 'employees'), employeeController.updateEmp
 
 /**
  * @swagger
- * /employees/{id}:
+ * /api/v1/employees/{id}:
  *   delete:
  *     summary: Delete employee (soft delete)
  *     tags: [Employees]
@@ -189,7 +189,7 @@ router.delete('/:id', auditLog('DELETE', 'employees'), employeeController.delete
 
 /**
  * @swagger
- * /employees/{id}/restore:
+ * /api/v1/employees/{id}/restore:
  *   patch:
  *     summary: Restore deleted employee
  *     tags: [Employees]
@@ -214,7 +214,159 @@ router.patch('/:id/restore', auditLog('UPDATE', 'employees'), employeeController
 
 /**
  * @swagger
- * /employees/{id}/profile:
+ * /api/v1/employees/{id}/lifecycle-state:
+ *   patch:
+ *     summary: Change employee lifecycle state
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Employee ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - to_state
+ *             properties:
+ *               to_state:
+ *                 type: string
+ *                 enum: [active, probation, confirmed, on_leave, suspended, resigned, terminated, retired, transferred, cancelled]
+ *               reason:
+ *                 type: string
+ *               remarks:
+ *                 type: string
+ *               effective_date:
+ *                 type: string
+ *                 format: date
+ *     responses:
+ *       200:
+ *         description: Lifecycle state changed successfully
+ *       400:
+ *         description: Invalid state transition
+ *       404:
+ *         description: Employee not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.patch('/:id/lifecycle-state', auditLog('UPDATE', 'employees'), employeeController.changeLifecycleState);
+
+/**
+ * @swagger
+ * /api/v1/employees/{id}/lifecycle-history:
+ *   get:
+ *     summary: Get employee lifecycle history
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Employee ID
+ *     responses:
+ *       200:
+ *         description: Lifecycle history retrieved successfully
+ *       404:
+ *         description: Employee not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/:id/lifecycle-history', auditLog('READ', 'employees'), employeeController.getLifecycleHistory);
+
+/**
+ * @swagger
+ * /api/v1/employees/{id}/job-changes:
+ *   post:
+ *     summary: Record job change (transfer/promotion/demotion/confirmation)
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Employee ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - change_type
+ *             properties:
+ *               change_type:
+ *                 type: string
+ *                 enum: [transfer, promotion, demotion, confirmation]
+ *               to_department_id:
+ *                 type: integer
+ *               to_designation_id:
+ *                 type: integer
+ *               to_location_id:
+ *                 type: integer
+ *               to_reporting_manager_id:
+ *                 type: integer
+ *               to_employment_type:
+ *                 type: string
+ *               to_salary:
+ *                 type: number
+ *               effective_date:
+ *                 type: string
+ *                 format: date
+ *               reason:
+ *                 type: string
+ *               remarks:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Job change recorded successfully
+ *       404:
+ *         description: Employee not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/:id/job-changes', auditLog('CREATE', 'employee_job_changes'), employeeController.addJobChange);
+
+/**
+ * @swagger
+ * /api/v1/employees/{id}/job-changes:
+ *   get:
+ *     summary: Get employee job change history
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Employee ID
+ *     responses:
+ *       200:
+ *         description: Job changes retrieved successfully
+ *       404:
+ *         description: Employee not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/:id/job-changes', auditLog('READ', 'employees'), employeeController.getJobChanges);
+
+/**
+ * @swagger
+ * /api/v1/employees/{id}/profile:
  *   get:
  *     summary: Get full employee profile
  *     tags: [Employees]
@@ -239,7 +391,7 @@ router.get('/:id/profile', auditLog('READ', 'employees'), employeeController.get
 
 /**
  * @swagger
- * /employees/{id}/job-details:
+ * /api/v1/employees/{id}/job-details:
  *   get:
  *     summary: Get employee job details history
  *     tags: [Employees]
@@ -264,7 +416,7 @@ router.get('/:id/job-details', auditLog('READ', 'employees'), employeeController
 
 /**
  * @swagger
- * /employees/{id}/job-details/current:
+ * /api/v1/employees/{id}/job-details/current:
  *   get:
  *     summary: Get current job details
  *     tags: [Employees]
@@ -289,7 +441,7 @@ router.get('/:id/job-details/current', auditLog('READ', 'employees'), employeeCo
 
 /**
  * @swagger
- * /employees/{id}/job-details:
+ * /api/v1/employees/{id}/job-details:
  *   post:
  *     summary: Update job details (SCD Type 2)
  *     tags: [Employees]
@@ -339,7 +491,7 @@ router.post('/:id/job-details', auditLog('CREATE', 'employee_job_details'), empl
 
 /**
  * @swagger
- * /employees/{id}/addresses:
+ * /api/v1/employees/{id}/addresses:
  *   get:
  *     summary: Get employee addresses history
  *     tags: [Employees]
@@ -364,7 +516,7 @@ router.get('/:id/addresses', auditLog('READ', 'employees'), employeeController.g
 
 /**
  * @swagger
- * /employees/{id}/addresses/current:
+ * /api/v1/employees/{id}/addresses/current:
  *   get:
  *     summary: Get current addresses
  *     tags: [Employees]
@@ -389,7 +541,7 @@ router.get('/:id/addresses/current', auditLog('READ', 'employees'), employeeCont
 
 /**
  * @swagger
- * /employees/{id}/addresses:
+ * /api/v1/employees/{id}/addresses:
  *   post:
  *     summary: Add new address (SCD Type 2)
  *     tags: [Employees]
@@ -436,7 +588,7 @@ router.post('/:id/addresses', auditLog('CREATE', 'employee_addresses'), employee
 
 /**
  * @swagger
- * /employees/{id}/bank-details:
+ * /api/v1/employees/{id}/bank-details:
  *   get:
  *     summary: Get employee bank details history
  *     tags: [Employees]
@@ -461,7 +613,7 @@ router.get('/:id/bank-details', auditLog('READ', 'employees'), employeeControlle
 
 /**
  * @swagger
- * /employees/{id}/bank-details/current:
+ * /api/v1/employees/{id}/bank-details/current:
  *   get:
  *     summary: Get current bank details
  *     tags: [Employees]
@@ -486,7 +638,7 @@ router.get('/:id/bank-details/current', auditLog('READ', 'employees'), employeeC
 
 /**
  * @swagger
- * /employees/{id}/bank-details:
+ * /api/v1/employees/{id}/bank-details:
  *   post:
  *     summary: Add bank details (SCD Type 2)
  *     tags: [Employees]
@@ -533,7 +685,7 @@ router.post('/:id/bank-details', auditLog('CREATE', 'employee_bank_details'), em
 
 /**
  * @swagger
- * /employees/{id}/education:
+ * /api/v1/employees/{id}/education:
  *   get:
  *     summary: Get employee education records
  *     tags: [Employees]
@@ -558,7 +710,7 @@ router.get('/:id/education', auditLog('READ', 'employees'), employeeController.g
 
 /**
  * @swagger
- * /employees/{id}/education:
+ * /api/v1/employees/{id}/education:
  *   post:
  *     summary: Add education record
  *     tags: [Employees]
@@ -606,7 +758,7 @@ router.post('/:id/education', auditLog('CREATE', 'employee_education'), employee
 
 /**
  * @swagger
- * /employees/{id}/experience:
+ * /api/v1/employees/{id}/experience:
  *   get:
  *     summary: Get employee experience records
  *     tags: [Employees]
@@ -631,7 +783,7 @@ router.get('/:id/experience', auditLog('READ', 'employees'), employeeController.
 
 /**
  * @swagger
- * /employees/{id}/experience:
+ * /api/v1/employees/{id}/experience:
  *   post:
  *     summary: Add experience record
  *     tags: [Employees]
@@ -677,7 +829,7 @@ router.post('/:id/experience', auditLog('CREATE', 'employee_experience'), employ
 
 /**
  * @swagger
- * /employees/{id}/documents:
+ * /api/v1/employees/{id}/documents:
  *   get:
  *     summary: Get employee documents
  *     tags: [Employees]
@@ -702,7 +854,7 @@ router.get('/:id/documents', auditLog('READ', 'employees'), employeeController.g
 
 /**
  * @swagger
- * /employees/{id}/documents:
+ * /api/v1/employees/{id}/documents:
  *   post:
  *     summary: Upload document
  *     tags: [Employees]
@@ -744,7 +896,7 @@ router.post('/:id/documents', auditLog('CREATE', 'employee_documents'), employee
 
 /**
  * @swagger
- * /employees/{id}/emergency-contacts:
+ * /api/v1/employees/{id}/emergency-contacts:
  *   get:
  *     summary: Get emergency contacts
  *     tags: [Employees]
@@ -769,7 +921,7 @@ router.get('/:id/emergency-contacts', auditLog('READ', 'employees'), employeeCon
 
 /**
  * @swagger
- * /employees/{id}/reporting-employees:
+ * /api/v1/employees/{id}/reporting-employees:
  *   get:
  *     summary: Get reporting employees
  *     tags: [Employees]

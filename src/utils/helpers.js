@@ -1,8 +1,18 @@
+const noDataResponse = (res, message = 'No data found') => {
+    return res.status(200).json({
+        success: true,
+        statusCode: 200,
+        message,
+        data: []
+    });
+};
+
 const config = require('../config');
 
 const successResponse = (res, data, message = 'Success', statusCode = 200, meta = null) => {
     const response = {
         success: true,
+        statusCode,
         message,
         data
     };
@@ -17,6 +27,7 @@ const successResponse = (res, data, message = 'Success', statusCode = 200, meta 
 const errorResponse = (res, message = 'Error', statusCode = 500, error = null) => {
     const response = {
         success: false,
+        statusCode,
         message
     };
 
@@ -32,9 +43,11 @@ const errorResponse = (res, message = 'Error', statusCode = 500, error = null) =
 };
 
 const paginatedResponse = (res, data, pagination, message = 'Success') => {
+    const isEmpty = Array.isArray(data) && data.length === 0;
     return res.status(200).json({
         success: true,
-        message,
+        statusCode: 200,
+        message: isEmpty ? 'No data found' : message,
         data,
         meta: {
             pagination: {
@@ -91,6 +104,7 @@ module.exports = {
     successResponse,
     errorResponse,
     paginatedResponse,
+    noDataResponse,
     formatDate,
     isPasswordExpired,
     getDaysUntilPasswordExpiry,

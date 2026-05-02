@@ -1,3 +1,23 @@
+-- Create webhook_endpoints table FIRST (referenced by webhooks)
+CREATE TABLE IF NOT EXISTS webhook_endpoints (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    description TEXT NULL,
+    secret VARCHAR(255) NULL,
+    events JSON NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    retry_count INT DEFAULT 3,
+    timeout_seconds INT DEFAULT 30,
+    headers JSON NULL,
+    created_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_url (url(255)),
+    INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Create webhooks table
 CREATE TABLE IF NOT EXISTS webhooks (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -29,30 +49,10 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
     attempt_number INT DEFAULT 1,
     delivered_at DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (webhook_id) REFERENCES webhook_endpoints(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (webhook_id) REFERENCES webhooks(id) ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX idx_event_id (event_id),
     INDEX idx_success (success),
     INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Create webhook_endpoints table
-CREATE TABLE IF NOT EXISTS webhook_endpoints (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    url VARCHAR(500) NOT NULL,
-    description TEXT NULL,
-    secret VARCHAR(255) NULL,
-    events JSON NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    retry_count INT DEFAULT 3,
-    timeout_seconds INT DEFAULT 30,
-    headers JSON NULL,
-    created_by INT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
-    INDEX idx_url (url(255)),
-    INDEX idx_is_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create tenants table for multi-tenancy

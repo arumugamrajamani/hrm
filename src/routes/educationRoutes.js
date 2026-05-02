@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const educationController = require('../controllers/educationController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { validate, validateParams, validateQuery } = require('../validations/joiValidator');
 const { 
     createEducationSchema, 
@@ -313,7 +313,7 @@ router.get('/:id/courses', validateParams(educationIdSchema), educationControlle
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', isAdmin, validate(createEducationSchema), educationController.createEducation);
+router.post('/', checkPermission('master.write'), validate(createEducationSchema), educationController.createEducation);
 
 /**
  * @swagger
@@ -406,7 +406,7 @@ router.post('/', isAdmin, validate(createEducationSchema), educationController.c
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', isAdmin, validateParams(educationIdSchema), validate(updateEducationSchema), educationController.updateEducation);
+router.put('/:id', checkPermission('master.update'), validateParams(educationIdSchema), validate(updateEducationSchema), educationController.updateEducation);
 
 /**
  * @swagger
@@ -460,7 +460,7 @@ router.put('/:id', isAdmin, validateParams(educationIdSchema), validate(updateEd
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', isAdmin, validateParams(educationIdSchema), educationController.deleteEducation);
+router.delete('/:id', checkPermission('master.delete'), validateParams(educationIdSchema), educationController.deleteEducation);
 
 /**
  * @swagger
@@ -513,7 +513,7 @@ router.delete('/:id', isAdmin, validateParams(educationIdSchema), educationContr
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/activate', isAdmin, validateParams(educationIdSchema), educationController.activateEducation);
+router.patch('/:id/activate', checkPermission('master.update'), validateParams(educationIdSchema), educationController.activateEducation);
 
 /**
  * @swagger
@@ -566,6 +566,6 @@ router.patch('/:id/activate', isAdmin, validateParams(educationIdSchema), educat
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/deactivate', isAdmin, validateParams(educationIdSchema), educationController.deactivateEducation);
+router.patch('/:id/deactivate', checkPermission('master.update'), validateParams(educationIdSchema), educationController.deactivateEducation);
 
 module.exports = router;

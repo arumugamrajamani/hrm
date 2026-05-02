@@ -1,5 +1,5 @@
 const locationService = require('../services/locationService');
-const { successResponse, paginatedResponse } = require('../utils/helpers');
+const { successResponse, paginatedResponse, noDataResponse } = require('../utils/helpers');
 
 class LocationController {
     async getAllLocations(req, res, next) {
@@ -13,6 +13,10 @@ class LocationController {
                 status,
                 includeHierarchy: hierarchy === 'true' || hierarchy === true
             });
+
+            if (!result.locations || result.locations.length === 0) {
+                return noDataResponse(res, 'No locations found');
+            }
 
             return paginatedResponse(
                 res,
@@ -29,6 +33,10 @@ class LocationController {
         try {
             const { id } = req.params;
             const location = await locationService.getLocationById(parseInt(id));
+            
+            if (!location) {
+                return noDataResponse(res, 'Location not found');
+            }
             return successResponse(res, location, 'Location retrieved successfully');
         } catch (error) {
             next(error);
@@ -38,6 +46,10 @@ class LocationController {
     async getLocationHierarchy(req, res, next) {
         try {
             const hierarchy = await locationService.getLocationHierarchy();
+            
+            if (!hierarchy || hierarchy.length === 0) {
+                return noDataResponse(res, 'No location hierarchy found');
+            }
             return successResponse(res, hierarchy, 'Location hierarchy retrieved successfully');
         } catch (error) {
             next(error);
@@ -48,6 +60,10 @@ class LocationController {
         try {
             const { id } = req.params;
             const children = await locationService.getChildLocations(parseInt(id));
+            
+            if (!children || children.length === 0) {
+                return noDataResponse(res, 'No child locations found');
+            }
             return successResponse(res, children, 'Child locations retrieved successfully');
         } catch (error) {
             next(error);
@@ -87,6 +103,10 @@ class LocationController {
         try {
             const { id } = req.params;
             const result = await locationService.deleteLocation(parseInt(id));
+            
+            if (!result) {
+                return noDataResponse(res, 'Location not found');
+            }
             return successResponse(res, result, 'Location deleted successfully');
         } catch (error) {
             next(error);
@@ -97,6 +117,10 @@ class LocationController {
         try {
             const { id } = req.params;
             const location = await locationService.activateLocation(parseInt(id));
+            
+            if (!location) {
+                return noDataResponse(res, 'Location not found');
+            }
             return successResponse(res, location, 'Location activated successfully');
         } catch (error) {
             next(error);
@@ -107,6 +131,10 @@ class LocationController {
         try {
             const { id } = req.params;
             const location = await locationService.deactivateLocation(parseInt(id));
+            
+            if (!location) {
+                return noDataResponse(res, 'Location not found');
+            }
             return successResponse(res, location, 'Location deactivated successfully');
         } catch (error) {
             next(error);
@@ -117,6 +145,10 @@ class LocationController {
         try {
             const { id } = req.params;
             const location = await locationService.setAsHeadquarters(parseInt(id));
+            
+            if (!location) {
+                return noDataResponse(res, 'Location not found');
+            }
             return successResponse(res, location, 'Location set as headquarters successfully');
         } catch (error) {
             next(error);

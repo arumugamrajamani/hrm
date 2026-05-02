@@ -1,5 +1,7 @@
 const jwtService = require('../config/jwt');
 const { errorResponse } = require('../utils/helpers');
+const { pool } = require('../config/database');
+const { parseJSON } = require('../utils/helpers');
 
 const authMiddleware = async (req, res, next) => {
     try {
@@ -18,10 +20,25 @@ const authMiddleware = async (req, res, next) => {
                 return errorResponse(res, 'Invalid token type', 401);
             }
 
+            // Fetch user with role permissions
+            const [users] = await pool.query(
+                `SELECT u.id, u.email, u.role_id, r.permissions 
+                 FROM users u 
+                 LEFT JOIN roles r ON u.role_id = r.id 
+                 WHERE u.id = ?`,
+                [decoded.id]
+            );
+
+            if (!users.length) {
+                return errorResponse(res, 'User not found', 401);
+            }
+
+            const user = users[0];
             req.user = {
                 id: decoded.id,
                 email: decoded.email,
-                role_id: decoded.role_id
+                role_id: decoded.role_id,
+                permissions: parseJSON(user.permissions) || []
             };
 
             next();

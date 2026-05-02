@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/courseController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { validate, validateParams, validateQuery } = require('../validations/joiValidator');
 const { 
     createCourseSchema, 
@@ -300,7 +300,7 @@ router.get('/:id/educations', validateParams(courseIdSchema), courseController.g
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', isAdmin, validate(createCourseSchema), courseController.createCourse);
+router.post('/', checkPermission('master.write'), validate(createCourseSchema), courseController.createCourse);
 
 /**
  * @swagger
@@ -388,7 +388,7 @@ router.post('/', isAdmin, validate(createCourseSchema), courseController.createC
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', isAdmin, validateParams(courseIdSchema), validate(updateCourseSchema), courseController.updateCourse);
+router.put('/:id', checkPermission('master.update'), validateParams(courseIdSchema), validate(updateCourseSchema), courseController.updateCourse);
 
 /**
  * @swagger
@@ -442,7 +442,7 @@ router.put('/:id', isAdmin, validateParams(courseIdSchema), validate(updateCours
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', isAdmin, validateParams(courseIdSchema), courseController.deleteCourse);
+router.delete('/:id', checkPermission('master.delete'), validateParams(courseIdSchema), courseController.deleteCourse);
 
 /**
  * @swagger
@@ -495,7 +495,7 @@ router.delete('/:id', isAdmin, validateParams(courseIdSchema), courseController.
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/activate', isAdmin, validateParams(courseIdSchema), courseController.activateCourse);
+router.patch('/:id/activate', checkPermission('master.update'), validateParams(courseIdSchema), courseController.activateCourse);
 
 /**
  * @swagger
@@ -548,6 +548,6 @@ router.patch('/:id/activate', isAdmin, validateParams(courseIdSchema), courseCon
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/deactivate', isAdmin, validateParams(courseIdSchema), courseController.deactivateCourse);
+router.patch('/:id/deactivate', checkPermission('master.update'), validateParams(courseIdSchema), courseController.deactivateCourse);
 
 module.exports = router;

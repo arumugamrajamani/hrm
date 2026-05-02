@@ -9,13 +9,13 @@ const { webhookService, EventType } = require('../services/webhookService');
 const { featureFlagService } = require('../services/featureFlags');
 const { ipBlocklistService } = require('../middlewares/ipBlock');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin, isSuperAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, isSuperAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { asyncHandler } = require('../middlewares/errorHandler');
 const config = require('../config');
 
 /**
  * @swagger
- * /health:
+ * /api/v1/system/health:
  *   get:
  *     summary: Basic health check
  *     tags: [Health]
@@ -56,7 +56,7 @@ router.get('/health', (req, res) => {
 
 /**
  * @swagger
- * /health/detailed:
+ * /api/v1/system/health/detailed:
  *   get:
  *     summary: Detailed health check
  *     tags: [Health]
@@ -107,7 +107,7 @@ router.get('/health/detailed', asyncHandler(async (req, res) => {
 
 /**
  * @swagger
- * /health/live:
+ * /api/v1/system/health/live:
  *   get:
  *     summary: Liveness probe
  *     tags: [Health]
@@ -126,7 +126,7 @@ router.get('/health/live', (req, res) => {
 
 /**
  * @swagger
- * /health/ready:
+ * /api/v1/system/health/ready:
  *   get:
  *     summary: Readiness probe
  *     tags: [Health]
@@ -157,7 +157,7 @@ router.get('/health/ready', asyncHandler(async (req, res) => {
 
 /**
  * @swagger
- * /metrics:
+ * /api/v1/system/metrics:
  *   get:
  *     summary: Prometheus metrics
  *     tags: [Metrics]
@@ -181,7 +181,7 @@ router.get('/metrics', (req, res) => {
 
 /**
  * @swagger
- * /metrics/json:
+ * /api/v1/system/metrics/json:
  *   get:
  *     summary: JSON metrics
  *     tags: [Metrics]
@@ -196,13 +196,13 @@ router.get('/metrics', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/MetricsResponse'
  */
-router.get('/metrics/json', authMiddleware, isAdmin, (req, res) => {
+router.get('/metrics/json', authMiddleware, checkPermission('audit.read'), (req, res) => {
     res.json(metricsService.getJsonMetrics());
 });
 
 /**
  * @swagger
- * /circuit-breakers:
+ * /api/v1/system/circuit-breakers:
  *   get:
  *     summary: Get circuit breaker status
  *     tags: [Admin]
@@ -219,7 +219,7 @@ router.get('/metrics/json', authMiddleware, isAdmin, (req, res) => {
  *               additionalProperties:
  *                 $ref: '#/components/schemas/CircuitBreakerStatus'
  */
-router.get('/circuit-breakers', authMiddleware, isAdmin, (req, res) => {
+router.get('/circuit-breakers', authMiddleware, checkPermission('audit.read'), (req, res) => {
     res.json({
         success: true,
         data: getAllCircuitBreakers()
@@ -228,7 +228,7 @@ router.get('/circuit-breakers', authMiddleware, isAdmin, (req, res) => {
 
 /**
  * @swagger
- * /feature-flags:
+ * /api/v1/system/feature-flags:
  *   get:
  *     summary: Get all feature flags
  *     tags: [FeatureFlags]
@@ -250,7 +250,7 @@ router.get('/circuit-breakers', authMiddleware, isAdmin, (req, res) => {
  *                   items:
  *                     $ref: '#/components/schemas/FeatureFlag'
  */
-router.get('/feature-flags', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.get('/feature-flags', authMiddleware, checkPermission('audit.read'), asyncHandler(async (req, res) => {
     const flags = await featureFlagService.getAllFlags();
     res.json({
         success: true,
@@ -260,7 +260,7 @@ router.get('/feature-flags', authMiddleware, isAdmin, asyncHandler(async (req, r
 
 /**
  * @swagger
- * /feature-flags/{name}/toggle:
+ * /api/v1/system/feature-flags/{name}/toggle:
  *   patch:
  *     summary: Toggle a feature flag
  *     tags: [FeatureFlags]
@@ -304,7 +304,7 @@ router.patch('/feature-flags/:name/toggle', authMiddleware, isSuperAdmin, asyncH
 
 /**
  * @swagger
- * /webhooks:
+ * /api/v1/system/webhooks:
  *   get:
  *     summary: Get all webhooks
  *     tags: [Webhooks]
@@ -326,7 +326,7 @@ router.patch('/feature-flags/:name/toggle', authMiddleware, isSuperAdmin, asyncH
  *                   items:
  *                     $ref: '#/components/schemas/Webhook'
  */
-router.get('/webhooks', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.get('/webhooks', authMiddleware, checkPermission('audit.read'), asyncHandler(async (req, res) => {
     const { pool } = require('../config/database');
     const [webhooks] = await pool.execute(
         'SELECT * FROM webhook_endpoints WHERE is_active = TRUE ORDER BY created_at DESC'
@@ -339,7 +339,7 @@ router.get('/webhooks', authMiddleware, isAdmin, asyncHandler(async (req, res) =
 
 /**
  * @swagger
- * /webhooks:
+ * /api/v1/system/webhooks:
  *   post:
  *     summary: Create a webhook
  *     tags: [Webhooks]
@@ -383,7 +383,7 @@ router.get('/webhooks', authMiddleware, isAdmin, asyncHandler(async (req, res) =
  *       400:
  *         description: Validation error
  */
-router.post('/webhooks', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.post('/webhooks', authMiddleware, checkPermission('audit.read'), asyncHandler(async (req, res) => {
     const { name, url, description, events, headers, retry_count = 3 } = req.body;
     const { pool } = require('../config/database');
     const crypto = require('crypto');
@@ -408,7 +408,7 @@ router.post('/webhooks', authMiddleware, isAdmin, asyncHandler(async (req, res) 
 
 /**
  * @swagger
- * /webhooks/{id}:
+ * /api/v1/system/webhooks/{id}:
  *   delete:
  *     summary: Delete a webhook
  *     tags: [Webhooks]
@@ -428,7 +428,7 @@ router.post('/webhooks', authMiddleware, isAdmin, asyncHandler(async (req, res) 
  *       404:
  *         description: Webhook not found
  */
-router.delete('/webhooks/:id', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.delete('/webhooks/:id', authMiddleware, checkPermission('audit.read'), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { pool } = require('../config/database');
 
@@ -452,7 +452,7 @@ router.delete('/webhooks/:id', authMiddleware, isAdmin, asyncHandler(async (req,
 
 /**
  * @swagger
- * /webhooks/events:
+ * /api/v1/system/webhooks/events:
  *   get:
  *     summary: Get available webhook events
  *     tags: [Webhooks]
@@ -532,7 +532,7 @@ router.get('/webhooks/events', (req, res) => {
 
 /**
  * @swagger
- * /ip-blocklist:
+ * /api/v1/system/ip-blocklist:
  *   get:
  *     summary: Get blocked IPs
  *     tags: [Admin]
@@ -565,7 +565,7 @@ router.get('/webhooks/events', (req, res) => {
  *                   items:
  *                     $ref: '#/components/schemas/IPBlock'
  */
-router.get('/ip-blocklist', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.get('/ip-blocklist', authMiddleware, checkPermission('audit.read'), asyncHandler(async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const blocked = await ipBlocklistService.getBlockedIPs(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
     res.json({
@@ -576,7 +576,7 @@ router.get('/ip-blocklist', authMiddleware, isAdmin, asyncHandler(async (req, re
 
 /**
  * @swagger
- * /ip-blocklist:
+ * /api/v1/system/ip-blocklist:
  *   post:
  *     summary: Block an IP address
  *     tags: [Admin]
@@ -611,7 +611,7 @@ router.get('/ip-blocklist', authMiddleware, isAdmin, asyncHandler(async (req, re
  *       400:
  *         description: Invalid request
  */
-router.post('/ip-blocklist', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.post('/ip-blocklist', authMiddleware, checkPermission('audit.read'), asyncHandler(async (req, res) => {
     const { ip_address, reason, is_permanent = false, expires_at } = req.body;
 
     if (!ip_address) {
@@ -636,7 +636,7 @@ router.post('/ip-blocklist', authMiddleware, isAdmin, asyncHandler(async (req, r
 
 /**
  * @swagger
- * /ip-blocklist/{ip}:
+ * /api/v1/system/ip-blocklist/{ip}:
  *   delete:
  *     summary: Unblock an IP address
  *     tags: [Admin]
@@ -656,7 +656,7 @@ router.post('/ip-blocklist', authMiddleware, isAdmin, asyncHandler(async (req, r
  *       404:
  *         description: IP not found in blocklist
  */
-router.delete('/ip-blocklist/:ip', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.delete('/ip-blocklist/:ip', authMiddleware, checkPermission('audit.read'), asyncHandler(async (req, res) => {
     const { ip } = req.params;
     const result = await ipBlocklistService.unblockIP(ip);
 
@@ -675,7 +675,7 @@ router.delete('/ip-blocklist/:ip', authMiddleware, isAdmin, asyncHandler(async (
 
 /**
  * @swagger
- * /bulk/export:
+ * /api/v1/system/bulk/export:
  *   post:
  *     summary: Initiate bulk export
  *     tags: [Bulk]
@@ -707,7 +707,13 @@ router.delete('/ip-blocklist/:ip', authMiddleware, isAdmin, asyncHandler(async (
  *             schema:
  *               $ref: '#/components/schemas/BulkJob'
  */
-router.post('/bulk/export', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+router.post('/bulk/export', authMiddleware, (req, res, next) => {
+    // Allow Super Admin (1), Admin (2), Manager (3), HR Manager (4) - exclude Employee (5)
+    if (req.user.role_id >= 1 && req.user.role_id <= 4) {
+        return next();
+    }
+    return errorResponse(res, 'Access denied', 403);
+}, asyncHandler(async (req, res) => {
     const bulkService = require('../services/bulkService');
     const { type, format = 'csv' } = req.body;
 
@@ -721,7 +727,7 @@ router.post('/bulk/export', authMiddleware, isAdmin, asyncHandler(async (req, re
 
 /**
  * @swagger
- * /bulk/job/{jobId}:
+ * /api/v1/system/bulk/job/{jobId}:
  *   get:
  *     summary: Get bulk job status
  *     tags: [Bulk]
@@ -764,7 +770,7 @@ router.get('/bulk/job/:jobId', authMiddleware, asyncHandler(async (req, res) => 
 
 /**
  * @swagger
- * /tenants:
+ * /api/v1/system/tenants:
  *   get:
  *     summary: Get all tenants
  *     tags: [Admin]
@@ -804,7 +810,7 @@ router.get('/tenants', authMiddleware, isSuperAdmin, asyncHandler(async (req, re
 
 /**
  * @swagger
- * /system/info:
+ * /api/v1/system/system/info:
  *   get:
  *     summary: Get system information
  *     tags: [Admin]
@@ -815,7 +821,7 @@ router.get('/tenants', authMiddleware, isSuperAdmin, asyncHandler(async (req, re
  *       200:
  *         description: System info
  */
-router.get('/system/info', authMiddleware, isAdmin, (req, res) => {
+router.get('/system/info', authMiddleware, checkPermission('audit.read'), (req, res) => {
     const dbMetrics = getPoolMetrics();
     
     res.json({

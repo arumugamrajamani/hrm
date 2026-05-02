@@ -77,6 +77,88 @@ class EmployeeService {
         return await employeeModel.findById(id);
     }
 
+    async changeLifecycleState(employeeId, { toState, reason, remarks, changedBy, effectiveDate }) {
+        const employee = await employeeModel.findById(employeeId);
+        
+        if (!employee) {
+            const error = new Error('Employee not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const currentState = employee.lifecycle_state || 'draft';
+
+        await employeeModel.changeLifecycleState(employeeId, {
+            fromState: currentState,
+            toState,
+            reason,
+            remarks,
+            changedBy,
+            effectiveDate
+        });
+
+        return await employeeModel.findById(employeeId);
+    }
+
+    async getLifecycleHistory(employeeId) {
+        const employee = await employeeModel.findById(employeeId);
+        
+        if (!employee) {
+            const error = new Error('Employee not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        return await employeeModel.getLifecycleHistory(employeeId);
+    }
+
+    async addJobChange(employeeId, jobChangeData) {
+        const employee = await employeeModel.findById(employeeId);
+        
+        if (!employee) {
+            const error = new Error('Employee not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const currentJob = await employeeModel.getCurrentJobDetails(employeeId);
+        
+        const changeId = await employeeModel.addJobChange({
+            employee_id: employeeId,
+            change_type: jobChangeData.change_type,
+            from_department_id: currentJob?.department_id || null,
+            to_department_id: jobChangeData.to_department_id || currentJob?.department_id || null,
+            from_designation_id: currentJob?.designation_id || null,
+            to_designation_id: jobChangeData.to_designation_id || currentJob?.designation_id || null,
+            from_location_id: currentJob?.location_id || null,
+            to_location_id: jobChangeData.to_location_id || currentJob?.location_id || null,
+            from_reporting_manager_id: currentJob?.reporting_manager_id || null,
+            to_reporting_manager_id: jobChangeData.to_reporting_manager_id || currentJob?.reporting_manager_id || null,
+            from_employment_type: currentJob?.employment_type || null,
+            to_employment_type: jobChangeData.to_employment_type || currentJob?.employment_type || null,
+            from_salary: jobChangeData.from_salary || null,
+            to_salary: jobChangeData.to_salary || null,
+            effective_date: jobChangeData.effective_date || new Date(),
+            reason: jobChangeData.reason || null,
+            remarks: jobChangeData.remarks || null,
+            created_by: jobChangeData.created_by || null
+        });
+
+        return { id: changeId, message: 'Job change recorded successfully' };
+    }
+
+    async getJobChanges(employeeId) {
+        const employee = await employeeModel.findById(employeeId);
+        
+        if (!employee) {
+            const error = new Error('Employee not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        return await employeeModel.getJobChanges(employeeId);
+    }
+
     async deleteEmployee(id) {
         const existingEmployee = await employeeModel.findById(id);
         

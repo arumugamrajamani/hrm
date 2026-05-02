@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const locationController = require('../controllers/locationController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { 
     createLocationValidation,
     updateLocationValidation,
@@ -394,7 +394,7 @@ router.get('/generate-code/code', locationController.generateBranchCode);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', isAdmin, createLocationValidation, locationController.createLocation);
+router.post('/', checkPermission('master.write'), createLocationValidation, locationController.createLocation);
 
 /**
  * @swagger
@@ -526,7 +526,7 @@ router.post('/', isAdmin, createLocationValidation, locationController.createLoc
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', isAdmin, updateLocationValidation, locationController.updateLocation);
+router.put('/:id', checkPermission('master.update'), updateLocationValidation, locationController.updateLocation);
 
 /**
  * @swagger
@@ -583,7 +583,7 @@ router.put('/:id', isAdmin, updateLocationValidation, locationController.updateL
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', isAdmin, locationIdValidation, locationController.deleteLocation);
+router.delete('/:id', checkPermission('master.delete'), locationIdValidation, locationController.deleteLocation);
 
 /**
  * @swagger
@@ -636,7 +636,7 @@ router.delete('/:id', isAdmin, locationIdValidation, locationController.deleteLo
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/activate', isAdmin, locationIdValidation, locationController.activateLocation);
+router.patch('/:id/activate', checkPermission('master.update'), locationIdValidation, locationController.activateLocation);
 
 /**
  * @swagger
@@ -695,7 +695,7 @@ router.patch('/:id/activate', isAdmin, locationIdValidation, locationController.
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/deactivate', isAdmin, locationIdValidation, locationController.deactivateLocation);
+router.patch('/:id/deactivate', checkPermission('master.update'), locationIdValidation, locationController.deactivateLocation);
 
 /**
  * @swagger
@@ -760,6 +760,6 @@ router.patch('/:id/deactivate', isAdmin, locationIdValidation, locationControlle
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/headquarters', isAdmin, locationIdValidation, locationController.setAsHeadquarters);
+router.patch('/:id/headquarters', checkPermission('master.update'), locationIdValidation, locationController.setAsHeadquarters);
 
 module.exports = router;

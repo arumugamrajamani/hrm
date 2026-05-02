@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const designationController = require('../controllers/designationController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { 
     createDesignationValidation,
     updateDesignationValidation,
@@ -312,7 +312,7 @@ router.get('/generate-code/code', designationController.generateDesignationCode)
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', isAdmin, createDesignationValidation, designationController.createDesignation);
+router.post('/', checkPermission('master.write'), createDesignationValidation, designationController.createDesignation);
 
 /**
  * @swagger
@@ -412,7 +412,7 @@ router.post('/', isAdmin, createDesignationValidation, designationController.cre
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', isAdmin, updateDesignationValidation, designationController.updateDesignation);
+router.put('/:id', checkPermission('master.update'), updateDesignationValidation, designationController.updateDesignation);
 
 /**
  * @swagger
@@ -469,7 +469,7 @@ router.put('/:id', isAdmin, updateDesignationValidation, designationController.u
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', isAdmin, designationIdValidation, designationController.deleteDesignation);
+router.delete('/:id', checkPermission('master.delete'), designationIdValidation, designationController.deleteDesignation);
 
 /**
  * @swagger
@@ -522,7 +522,7 @@ router.delete('/:id', isAdmin, designationIdValidation, designationController.de
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/activate', isAdmin, designationIdValidation, designationController.activateDesignation);
+router.patch('/:id/activate', checkPermission('master.update'), designationIdValidation, designationController.activateDesignation);
 
 /**
  * @swagger
@@ -581,6 +581,6 @@ router.patch('/:id/activate', isAdmin, designationIdValidation, designationContr
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/deactivate', isAdmin, designationIdValidation, designationController.deactivateDesignation);
+router.patch('/:id/deactivate', checkPermission('master.update'), designationIdValidation, designationController.deactivateDesignation);
 
 module.exports = router;

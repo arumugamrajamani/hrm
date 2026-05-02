@@ -101,11 +101,19 @@ const errorHandler = (err, req, res, _next) => {
         });
     }
 
-    if (err.message && (err.message.includes('not found') || err.message.includes('Invalid credentials'))) {
+    if (err.message && err.message.includes('not found')) {
         return res.status(404).json({
             success: false,
             message: 'The requested resource was not found.',
             code: 'NOT_FOUND'
+        });
+    }
+
+    if (err.message && err.message.includes('Invalid credentials')) {
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid email or password. Please check your credentials and try again.',
+            code: 'INVALID_CREDENTIALS'
         });
     }
 
