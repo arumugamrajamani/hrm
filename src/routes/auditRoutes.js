@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const auditController = require('../controllers/auditController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, isSuperAdmin, checkPermission } = require('../middlewares/roleCheck');
 
 router.use(authMiddleware);
-router.use(isAdmin);
+router.use(checkPermission('audit.read'));
 
 /**
  * @swagger

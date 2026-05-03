@@ -1,5 +1,5 @@
 const courseService = require('../services/courseService');
-const { successResponse, paginatedResponse, errorResponse } = require('../utils/helpers');
+const { successResponse, paginatedResponse, noDataResponse } = require('../utils/helpers');
 
 class CourseController {
     async getAllCourses(req, res, next) {
@@ -12,6 +12,10 @@ class CourseController {
                 search,
                 status
             });
+
+            if (!result.courses || result.courses.length === 0) {
+                return noDataResponse(res, 'No courses found');
+            }
 
             return paginatedResponse(
                 res,
@@ -28,6 +32,10 @@ class CourseController {
         try {
             const { id } = req.params;
             const course = await courseService.getCourseById(parseInt(id));
+            
+            if (!course) {
+                return noDataResponse(res, 'Course not found');
+            }
             return successResponse(res, course, 'Course retrieved successfully');
         } catch (error) {
             next(error);
@@ -97,6 +105,10 @@ class CourseController {
         try {
             const { id } = req.params;
             const result = await courseService.getEducationsByCourse(parseInt(id));
+            
+            if (!result || result.length === 0) {
+                return noDataResponse(res, 'No educations found for this course');
+            }
             return successResponse(res, result, 'Educations retrieved successfully');
         } catch (error) {
             next(error);

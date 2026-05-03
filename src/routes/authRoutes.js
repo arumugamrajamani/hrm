@@ -61,6 +61,7 @@ router.post('/register', registerValidation, authController.register);
  *   post:
  *     summary: Login user
  *     tags: [Auth]
+ *     description: Authenticate user and receive JWT tokens. If 2FA is enabled, returns requiresTwoFactor flag.
  *     requestBody:
  *       required: true
  *       content:
@@ -84,27 +85,30 @@ router.post('/register', registerValidation, authController.register);
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Login successful"
- *                 data:
- *                   type: object
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/AuthTokens'
+ *                 - type: object
  *                   properties:
- *                     accessToken:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *                     message:
  *                       type: string
- *                       description: JWT access token
- *                     refreshToken:
- *                       type: string
- *                       description: JWT refresh token
- *                     user:
- *                       $ref: '#/components/schemas/User'
+ *                       example: "Two-factor authentication required"
+ *                     requiresTwoFactor:
+ *                       type: boolean
+ *                       example: true
+ *                     requiresBackupCode:
+ *                       type: boolean
+ *                       example: false
  *       401:
- *         description: Invalid credentials
+ *         description: Invalid credentials or account blocked
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Too many login attempts
  *         content:
  *           application/json:
  *             schema:
@@ -253,13 +257,13 @@ router.post('/verify-otp', otpLimiter, verifyOtpValidation, authController.verif
  *               email:
  *                 type: string
  *                 format: email
- *                 example: john@example.com
+ *                 example: admin@hrm.com
  *               otp:
  *                 type: string
  *                 example: "123456"
  *               new_password:
  *                 type: string
- *                 example: "NewPassword123!"
+ *                 example: "Dhiyasri6$"
  *     responses:
  *       200:
  *         description: Password reset successfully
@@ -323,8 +327,9 @@ router.post('/change-password', authMiddleware, changePasswordValidation, authCo
  * @swagger
  * /api/v1/auth/setup-2fa:
  *   post:
- *     summary: Setup 2FA
+ *     summary: Setup Two-Factor Authentication (2FA)
  *     tags: [Auth]
+ *     description: Generate TOTP secret and QR code for authenticator apps (Google Authenticator, Authy, etc.)
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -338,15 +343,17 @@ router.post('/change-password', authMiddleware, changePasswordValidation, authCo
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Two-factor authentication setup initiated. Save your backup codes securely."
  *                 data:
- *                   type: object
- *                   properties:
- *                     qrCodeUrl:
- *                       type: string
- *                       description: URL for QR code generation
- *                     secret:
- *                       type: string
- *                       description: TOTP secret for manual entry
+ *                   $ref: '#/components/schemas/TwoFactorSetup'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post('/setup-2fa', authMiddleware, authController.setupTwoFactor);
 

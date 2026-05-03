@@ -9,14 +9,16 @@ const checkPermission = (requiredPermissions) => {
 
             const userRoleId = req.user.role_id;
 
-            if (userRoleId === 1) {
+            // Role ID 1 (Super Admin) and Role ID 2 (Admin) bypass all permission checks
+            if (userRoleId === 1 || userRoleId === 2) {
                 return next();
             }
 
             const rolePermissions = req.user.permissions || [];
 
+            // Check if user has all required permissions
             if (Array.isArray(requiredPermissions)) {
-                const hasAllPermissions = requiredPermissions.every(permission => 
+                const hasAllPermissions = requiredPermissions.every(permission =>
                     rolePermissions.includes(permission) || rolePermissions.includes('all')
                 );
 
@@ -24,8 +26,8 @@ const checkPermission = (requiredPermissions) => {
                     return errorResponse(res, 'Insufficient permissions', 403);
                 }
             } else {
-                const hasPermission = rolePermissions.includes(requiredPermissions) || 
-                                      rolePermissions.includes('all');
+                const hasPermission = rolePermissions.includes(requiredPermissions) ||
+                    rolePermissions.includes('all');
 
                 if (!hasPermission) {
                     return errorResponse(res, 'Insufficient permissions', 403);

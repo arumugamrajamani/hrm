@@ -1,10 +1,14 @@
 const educationCourseMapService = require('../services/educationCourseMapService');
-const { successResponse, errorResponse } = require('../utils/helpers');
+const { successResponse, noDataResponse } = require('../utils/helpers');
 
 class EducationCourseMapController {
     async getAllMappings(req, res, next) {
         try {
             const mappings = await educationCourseMapService.getAllMappings();
+            
+            if (!mappings || mappings.length === 0) {
+                return noDataResponse(res, 'No mappings found');
+            }
             return successResponse(res, mappings, 'Mappings retrieved successfully');
         } catch (error) {
             next(error);
@@ -15,6 +19,10 @@ class EducationCourseMapController {
         try {
             const { id } = req.params;
             const mapping = await educationCourseMapService.getMappingById(parseInt(id));
+            
+            if (!mapping) {
+                return noDataResponse(res, 'Mapping not found');
+            }
             return successResponse(res, mapping, 'Mapping retrieved successfully');
         } catch (error) {
             next(error);
@@ -49,6 +57,10 @@ class EducationCourseMapController {
         try {
             const { id } = req.params;
             const result = await educationCourseMapService.getCoursesByEducation(parseInt(id));
+            
+            if (!result || result.length === 0) {
+                return noDataResponse(res, 'No courses found for this education');
+            }
             return successResponse(res, result, 'Courses retrieved successfully');
         } catch (error) {
             next(error);
@@ -59,6 +71,10 @@ class EducationCourseMapController {
         try {
             const { id } = req.params;
             const result = await educationCourseMapService.getEducationsByCourse(parseInt(id));
+            
+            if (!result || result.length === 0) {
+                return noDataResponse(res, 'No educations found for this course');
+            }
             return successResponse(res, result, 'Educations retrieved successfully');
         } catch (error) {
             next(error);

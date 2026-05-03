@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const departmentController = require('../controllers/departmentController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { 
     createDepartmentValidation,
     updateDepartmentValidation,
@@ -309,7 +309,7 @@ router.get('/:id', departmentIdValidation, departmentController.getDepartmentByI
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', isAdmin, createDepartmentValidation, departmentController.createDepartment);
+router.post('/', checkPermission('master.write'), createDepartmentValidation, departmentController.createDepartment);
 
 /**
  * @swagger
@@ -402,7 +402,7 @@ router.post('/', isAdmin, createDepartmentValidation, departmentController.creat
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', isAdmin, updateDepartmentValidation, departmentController.updateDepartment);
+router.put('/:id', checkPermission('master.update'), updateDepartmentValidation, departmentController.updateDepartment);
 
 /**
  * @swagger
@@ -459,7 +459,7 @@ router.put('/:id', isAdmin, updateDepartmentValidation, departmentController.upd
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', isAdmin, departmentIdValidation, departmentController.deleteDepartment);
+router.delete('/:id', checkPermission('master.delete'), departmentIdValidation, departmentController.deleteDepartment);
 
 /**
  * @swagger
@@ -512,7 +512,7 @@ router.delete('/:id', isAdmin, departmentIdValidation, departmentController.dele
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/activate', isAdmin, departmentIdValidation, departmentController.activateDepartment);
+router.patch('/:id/activate', checkPermission('master.update'), departmentIdValidation, departmentController.activateDepartment);
 
 /**
  * @swagger
@@ -571,6 +571,6 @@ router.patch('/:id/activate', isAdmin, departmentIdValidation, departmentControl
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id/deactivate', isAdmin, departmentIdValidation, departmentController.deactivateDepartment);
+router.patch('/:id/deactivate', checkPermission('master.update'), departmentIdValidation, departmentController.deactivateDepartment);
 
 module.exports = router;

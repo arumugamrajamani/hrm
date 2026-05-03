@@ -1,5 +1,5 @@
 const userService = require('../services/userService');
-const { successResponse, errorResponse, paginatedResponse } = require('../utils/helpers');
+const { successResponse, errorResponse, paginatedResponse, noDataResponse } = require('../utils/helpers');
 
 class UserController {
     async getAllUsers(req, res, next) {
@@ -15,6 +15,10 @@ class UserController {
                 search,
                 status
             });
+
+            if (!result.users || result.users.length === 0) {
+                return noDataResponse(res, 'No users found');
+            }
 
             const pagination = {
                 page: result.page,
@@ -35,6 +39,9 @@ class UserController {
             
             const user = await userService.getUserById(parseInt(id));
 
+            if (!user) {
+                return noDataResponse(res, 'User not found');
+            }
             return successResponse(res, user, 'User retrieved successfully');
         } catch (error) {
             next(error);
@@ -138,7 +145,10 @@ class UserController {
     async getAllRoles(req, res, next) {
         try {
             const roles = await userService.getAllRoles();
-
+            
+            if (!roles || roles.length === 0) {
+                return noDataResponse(res, 'No roles found');
+            }
             return successResponse(res, roles, 'Roles retrieved successfully');
         } catch (error) {
             next(error);

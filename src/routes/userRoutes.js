@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { authMiddleware } = require('../middlewares/auth');
-const { isAdmin } = require('../middlewares/roleCheck');
+const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { 
     createUserValidation,
     createUserWithEmailValidation,
@@ -47,7 +47,7 @@ router.use(authMiddleware);
  *         name: status
  *         schema:
  *           type: string
- *           enum: [active, inactive]
+ *           enum: [active, inactive, blocked, deleted]
  *         description: Filter by user status
  *     responses:
  *       200:
@@ -236,7 +236,7 @@ router.get('/:id', idValidation, userController.getUserById);
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.post('/', isAdmin, upload.single('profile_photo'), userController.createUser);
+router.post('/', checkPermission('users.write'), upload.single('profile_photo'), userController.createUser);
 
 /**
  * @swagger
@@ -282,7 +282,7 @@ router.post('/', isAdmin, upload.single('profile_photo'), userController.createU
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.post('/with-email', isAdmin, createUserWithEmailValidation, userController.createUserWithEmail);
+router.post('/with-email', checkPermission('users.write'), createUserWithEmailValidation, userController.createUserWithEmail);
 
 /**
  * @swagger
@@ -340,7 +340,7 @@ router.post('/with-email', isAdmin, createUserWithEmailValidation, userControlle
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.put('/:id', isAdmin, upload.single('profile_photo'), userController.updateUser);
+router.put('/:id', checkPermission('users.update'), upload.single('profile_photo'), userController.updateUser);
 
 /**
  * @swagger
@@ -368,7 +368,7 @@ router.put('/:id', isAdmin, upload.single('profile_photo'), userController.updat
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.delete('/:id', isAdmin, idValidation, userController.deleteUser);
+router.delete('/:id', checkPermission('users.delete'), idValidation, userController.deleteUser);
 
 /**
  * @swagger
@@ -396,7 +396,7 @@ router.delete('/:id', isAdmin, idValidation, userController.deleteUser);
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.patch('/:id/activate', isAdmin, idValidation, userController.activateUser);
+router.patch('/:id/activate', checkPermission('users.update'), idValidation, userController.activateUser);
 
 /**
  * @swagger
@@ -424,6 +424,6 @@ router.patch('/:id/activate', isAdmin, idValidation, userController.activateUser
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.patch('/:id/deactivate', isAdmin, idValidation, userController.deactivateUser);
+router.patch('/:id/deactivate', checkPermission('users.update'), idValidation, userController.deactivateUser);
 
 module.exports = router;
