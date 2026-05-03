@@ -257,13 +257,13 @@ router.post('/verify-otp', otpLimiter, verifyOtpValidation, authController.verif
  *               email:
  *                 type: string
  *                 format: email
- *                 example: john@example.com
+ *                 example: admin@hrm.com
  *               otp:
  *                 type: string
  *                 example: "123456"
  *               new_password:
  *                 type: string
- *                 example: "NewPassword123!"
+ *                 example: "Dhiyasri6$"
  *     responses:
  *       200:
  *         description: Password reset successfully

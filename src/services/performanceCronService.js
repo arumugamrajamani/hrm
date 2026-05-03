@@ -4,7 +4,7 @@ const {
 } = require('./performanceService');
 const { PerformanceNotificationRepository, PerformanceSelfRatingRepository, PerformanceManagerRatingRepository, PerformanceOverallRatingRepository } = require('../repositories/performanceRepository');
 const { EmployeeJobModel } = require('../models');
-const { sendEmail } = require('../utils/emailSender');
+const { sendEmail } = require('../config/mail');
 const { pool } = require('../config/database');
 
 class PerformanceCronService {
