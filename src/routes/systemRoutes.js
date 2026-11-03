@@ -11,6 +11,7 @@ const { ipBlocklistService } = require('../middlewares/ipBlock');
 const { authMiddleware } = require('../middlewares/auth');
 const { isAdmin, isSuperAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { asyncHandler } = require('../middlewares/errorHandler');
+const { errorResponse } = require('../utils/helpers');
 const config = require('../config');
 
 /**
@@ -810,7 +811,7 @@ router.get('/tenants', authMiddleware, isSuperAdmin, asyncHandler(async (req, re
 
 /**
  * @swagger
- * /api/v1/system/system/info:
+ * /api/v1/system/info:
  *   get:
  *     summary: Get system information
  *     tags: [Admin]
@@ -821,7 +822,7 @@ router.get('/tenants', authMiddleware, isSuperAdmin, asyncHandler(async (req, re
  *       200:
  *         description: System info
  */
-router.get('/system/info', authMiddleware, checkPermission('audit.read'), (req, res) => {
+router.get('/info', authMiddleware, checkPermission('audit.read'), (req, res) => {
     const dbMetrics = getPoolMetrics();
     
     res.json({

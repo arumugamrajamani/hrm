@@ -5,10 +5,62 @@ const employeeBankModel = require('../models/employeeBankModel');
 const employeeEducationModel = require('../models/employeeEducationModel');
 const employeeExperienceModel = require('../models/employeeExperienceModel');
 const employeeDocumentModel = require('../models/employeeDocumentModel');
+const UserModel = require('../models/index').UserModel;
+const { hashPassword, generateRandomPassword } = require('../utils/passwordUtils');
+const { sendEmail } = require('../config/mail');
+const { getWelcomeEmailTemplate } = require('../utils/emailTemplates');
+const config = require('../config');
+
+const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
+
+function validateIndianMobile(mobile) {
+    if (!mobile) return true;
+    const cleaned = mobile.replace(/[\s-()]/g, '');
+    if (cleaned.startsWith('+91')) {
+        return INDIAN_MOBILE_REGEX.test(cleaned.substring(3));
+    }
+    return INDIAN_MOBILE_REGEX.test(cleaned);
+}
+
+function slugify(text) {
+    return text.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+async function generateUsername(firstName, lastName, mobile) {
+    const base = slugify(firstName) + (lastName ? '_' + slugify(lastName) : '');
+    
+    let candidate = base;
+    let suffix = 1;
+    
+    while (await UserModel.usernameExists(candidate)) {
+        if (mobile && mobile.replace(/[\s-()+]/g, '').length >= 4) {
+            const last4 = mobile.replace(/[\s-()+]/g, '').slice(-4);
+            candidate = base + '_' + last4;
+            if (suffix > 1) {
+                candidate += '_' + suffix;
+            }
+        } else {
+            candidate = base + '_' + suffix;
+        }
+        suffix++;
+    }
+    
+    return candidate;
+}
+
+function validateDateNotInFuture(dateStr) {
+    if (!dateStr) return true;
+    const inputDate = new Date(dateStr);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return inputDate <= today;
+}
 
 class EmployeeService {
     async createEmployee(employeeData) {
-        const { first_name, last_name, date_of_birth, gender, profile_photo, created_by } = employeeData;
+        const { first_name, last_name, mobile, alternate_mobile, emergency_contact_mobile, date_of_joining } = employeeData;
 
         if (!first_name) {
             const error = new Error('First name is required');
@@ -16,17 +68,94 @@ class EmployeeService {
             throw error;
         }
 
-        const employeeId = await employeeModel.create({
-            first_name,
-            last_name,
-            date_of_birth,
-            gender,
-            profile_photo,
-            created_by
+        if (mobile && !validateIndianMobile(mobile)) {
+            const error = new Error('Invalid Indian mobile number. Must be 10 digits starting with 6-9');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (alternate_mobile && !validateIndianMobile(alternate_mobile)) {
+            const error = new Error('Invalid Indian mobile number for alternate mobile');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (emergency_contact_mobile && !validateIndianMobile(emergency_contact_mobile)) {
+            const error = new Error('Invalid Indian mobile number for emergency contact');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (date_of_joining && !validateDateNotInFuture(date_of_joining)) {
+            const error = new Error('Date of joining cannot be in the future');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        let username = employeeData.username;
+        if (!username && (employeeData.email || employeeData.role_id)) {
+            username = await generateUsername(first_name, last_name, mobile);
+        }
+
+        const created = await employeeModel.create({
+            ...employeeData,
+            username,
+            created_by: employeeData.created_by || null
         });
 
-        const employee = await employeeModel.findById(employeeId);
-        return employee;
+        if (username || employeeData.email) {
+            if (!username) {
+                username = await generateUsername(first_name, last_name, mobile);
+            }
+
+            if (!employeeData.email) {
+                const error = new Error('Email is required when creating a user account');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            if (await UserModel.emailExists(employeeData.email)) {
+                const error = new Error('Email already exists');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            if (await UserModel.usernameExists(username)) {
+                const error = new Error(`Generated username '${username}' already exists. Please provide a unique username`);
+                error.statusCode = 400;
+                throw error;
+            }
+
+            const generatedPassword = employeeData.password || generateRandomPassword(12);
+            const passwordHash = await hashPassword(generatedPassword);
+
+            await UserModel.create({
+                username,
+                email: employeeData.email,
+                mobile: mobile || null,
+                password: passwordHash,
+                role_id: employeeData.role_id || 1,
+                employee_id: created.id,
+                status: employeeData.account_status || 'active',
+                created_by: employeeData.created_by || null
+            });
+
+            const fullName = `${first_name}${last_name ? ' ' + last_name : ''}`;
+            const loginUrl = config.FRONTEND_URL || 'http://localhost:4200';
+
+            try {
+                await sendEmail(
+                    employeeData.email,
+                    'Welcome to HRM System - Your Account Credentials',
+                    getWelcomeEmailTemplate(fullName, username, generatedPassword, loginUrl)
+                );
+            } catch (emailError) {
+                console.error('Failed to send welcome email:', emailError);
+            }
+        }
+
+        const employee = await employeeModel.findById(created.id);
+        return { ...employee, generated_username: username || null };
     }
 
     async getAllEmployees(params) {

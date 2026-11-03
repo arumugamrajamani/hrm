@@ -5,9 +5,11 @@
 A production-grade, employee-centric HRM system built on Node.js/Express/MySQL with multi-tenant readiness, SCD Type 2 temporal tracking, hierarchical org structures, and complete employee lifecycle management from recruitment through retirement.
 
 **Version:** 2.0.0  
-**Architecture:** Layered Monolith (Controller → Service → Repository)  
-**Database:** MySQL 8.0 with recursive CTEs, stored procedures, views  
+**Architecture:** Layered Monolith (Controller → Service → Repository → Model → DB)  
+**Database:** MySQL 8.0 with recursive CTEs, views, JSON columns  
 **Authentication:** JWT (access + refresh), 2FA (email/TOTP), API keys  
+**API Prefix:** `/api/v1`  
+**Logging/Monitoring:** Winston + Morgan, custom MetricsService, Bull + Redis  
 **Compliance Targets:** SOC 2 Type II, ISO 27001, GDPR, India DPDP Act 2023
 
 ---
@@ -92,10 +94,10 @@ hrm/
 │   ├── routes/           # API route definitions with Swagger docs
 │   ├── utils/            # Logger, sanitizer, validators, helpers
 │   ├── database/
-│   │   ├── schema.sql    # Core schema (26 tables + views + procedures)
+│   │   ├── schema.sql    # Core schema (~67 tables, seed data, indexes, JSON columns)
 │   │   ├── seed.sql      # Default data
 │   │   ├── migrate.js    # Migration runner
-│   │   └── migrations/   # Ordered SQL migration files (001-004)
+│   │   └── migrations/   # SQL migrations 001-008 + JS migrations (001-007)
 │   ├── tests/            # Jest test suites
 │   ├── app.js            # Express app configuration
 │   └── server.js         # Server entry point
@@ -176,7 +178,7 @@ hrm/
 | **Checklist Templates** | onboarding_checklist_templates, checklist_items | 7 | ✅ Complete |
 | **Probation Tracking** | probation_tracking | 3 | ✅ Complete |
 
-**Total:** 59+ tables, 120+ API endpoints, 4 views, 3 stored procedures
+**Total:** 67 tables, 150+ API endpoints, 4 views, 8 SQL migrations + 7 JS migrations
 
 ---
 
@@ -399,13 +401,16 @@ Layer 8: Enterprise
 
 ### 9.1 Response Format
 
-**Success:**
+**Success (paginated):**
 ```json
 {
   "success": true,
+  "statusCode": 200,
   "message": "Operation completed",
   "data": { ... },
-  "pagination": { "page": 1, "limit": 10, "total": 50, "totalPages": 5 }
+  "meta": {
+    "pagination": { "page": 1, "limit": 10, "total": 50, "totalPages": 5 }
+  }
 }
 ```
 
@@ -413,6 +418,7 @@ Layer 8: Enterprise
 ```json
 {
   "success": false,
+  "statusCode": 400,
   "message": "Error description",
   "errors": [{ "field": "email", "message": "Email already exists" }]
 }
@@ -468,10 +474,10 @@ Layer 8: Enterprise
 | Missing schema for 26 tables | Runtime crashes | Migration 004 | ✅ Fixed |
 | Webhook FK ordering bug | Migration fails | Migration 002 reordered | ✅ Fixed |
 | Missing business_unit_id columns | Payroll joins fail | Migration 004 ALTER | ✅ Fixed |
-| Validation middleware missing | No input validation on new modules | Add express-validator/Joi | 🔲 TODO |
-| Swagger docs incomplete | New modules not documented | Add @swagger blocks | 🔲 TODO |
+| Validation middleware missing | No input validation on new modules | Add express-validator/Joi | 🔲 TODO (partially resolved — auth/user/department/location/designation now covered; employee module uses service-level checks) |
+| Swagger docs incomplete | New modules not documented | Add @swagger blocks | 🔲 TODO (largely resolved — @swagger JSDoc present across modules; employee routes carry auth + auditLog but no validation) |
 | No test coverage for new modules | Regression risk | Write Jest tests | 🔲 TODO |
-| No role checks on new routes | Authorization gaps | Add roleCheck middleware | 🔲 TODO |
+| No role checks on new routes | Authorization gaps | Add roleCheck middleware | 🔲 TODO (partially resolved — `checkPermission('master.write')` etc. now used on master routes) |
 | Soft delete not uniform | Inconsistent deletion | Standardize pattern | 🔲 TODO |
 
 ---
@@ -481,7 +487,7 @@ Layer 8: Enterprise
 ### Migration Execution Order
 ```bash
 mysql -u root -p < src/database/schema.sql
-node src/database/migrate.js  # runs 001, 002, 003, 004 in order
+node src/database/migrate.js  # runs 001, 002, 003, 004, ... in order
 ```
 
 ### Key Files
@@ -508,6 +514,6 @@ npm run seed         # Run seed data
 
 ---
 
-**Last Updated:** April 30, 2026  
+**Last Updated:** November 2, 2026  
 **Author:** opencode (Architecture Session)  
 **Next Review:** After Phase 5 planning

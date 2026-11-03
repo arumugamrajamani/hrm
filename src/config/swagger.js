@@ -23,6 +23,7 @@ All responses follow this structure:
 \`\`\`json
 {
   "success": true,
+  "statusCode": 200,
   "message": "Success message",
   "data": {},
   "meta": {
@@ -42,6 +43,7 @@ All responses follow this structure:
 \`\`\`json
 {
   "success": false,
+  "statusCode": 400,
   "message": "Error description",
   "code": "ERROR_CODE"
 }
@@ -95,7 +97,17 @@ This API uses JWT Bearer token authentication.
             { name: 'Designations', description: 'Designation Management' },
             { name: 'Education', description: 'Education Master' },
             { name: 'Courses', description: 'Course Master' },
-            { name: 'Mappings', description: 'Education-Course Mappings' },
+            { name: 'Education-Course Mapping', description: 'Education-Course Mappings' },
+            { name: 'Employment Types', description: 'Employment Type Master' },
+            { name: 'Shifts', description: 'Shift Management' },
+            { name: 'Audit', description: 'Audit Logs' },
+            { name: 'Performance Cycles', description: 'Performance Management Cycles' },
+            { name: 'Performance Goals', description: 'Performance Goals & KPIs' },
+            { name: 'Self Ratings', description: 'Employee Self Ratings' },
+            { name: 'Manager Ratings', description: 'Manager Ratings' },
+            { name: 'Overall Ratings', description: 'Overall Performance Ratings' },
+            { name: 'Annual Summaries', description: 'Annual Performance Summaries' },
+            { name: 'Performance Notifications', description: 'Performance Notifications' },
             { name: 'Health', description: 'Health & Monitoring' },
             { name: 'Metrics', description: 'Prometheus Metrics' },
             { name: 'Webhooks', description: 'Webhook Management' },
@@ -123,6 +135,7 @@ This API uses JWT Bearer token authentication.
                     type: 'object',
                     properties: {
                         success: { type: 'boolean', example: false },
+                        statusCode: { type: 'integer', example: 400 },
                         message: { type: 'string', example: 'Error message' },
                         code: { type: 'string', example: 'ERROR_CODE' },
                         errors: { 
@@ -141,6 +154,7 @@ This API uses JWT Bearer token authentication.
                     type: 'object',
                     properties: {
                         success: { type: 'boolean', example: true },
+                        statusCode: { type: 'integer', example: 200 },
                         message: { type: 'string', example: 'Success message' },
                         data: { type: 'object' },
                         meta: { type: 'object', nullable: true },
@@ -150,6 +164,7 @@ This API uses JWT Bearer token authentication.
                     type: 'object',
                     properties: {
                         id: { type: 'integer' },
+                        employee_id: { type: 'integer', nullable: true },
                         username: { type: 'string' },
                         email: { type: 'string', format: 'email' },
                         mobile: { type: 'string' },
@@ -157,10 +172,15 @@ This API uses JWT Bearer token authentication.
                         role_name: { type: 'string' },
                         status: { type: 'string', enum: ['active', 'inactive', 'blocked', 'deleted'] },
                         two_factor_enabled: { type: 'boolean' },
-                        profile_photo: { type: 'string', nullable: true },
                         password_changed_at: { type: 'string', format: 'date-time', nullable: true },
+                        last_login: { type: 'string', format: 'date-time', nullable: true },
                         created_at: { type: 'string', format: 'date-time' },
                         updated_at: { type: 'string', format: 'date-time' },
+                        employee_code: { type: 'string', nullable: true },
+                        first_name: { type: 'string', nullable: true },
+                        last_name: { type: 'string', nullable: true },
+                        employee_name: { type: 'string', nullable: true },
+                        profile_photo: { type: 'string', nullable: true, description: 'From employees table' },
                     },
                 },
                 AuthTokens: {
@@ -170,6 +190,40 @@ This API uses JWT Bearer token authentication.
                         refreshToken: { type: 'string' },
                         expiresIn: { type: 'integer', example: 900 },
                         user: { $ref: '#/components/schemas/User' }
+                    },
+                },
+                Employee: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'integer' },
+                        employee_code: { type: 'string' },
+                        first_name: { type: 'string' },
+                        last_name: { type: 'string', nullable: true },
+                        full_name: { type: 'string' },
+                        date_of_birth: { type: 'string', format: 'date', nullable: true },
+                        gender: { type: 'string', enum: ['Male', 'Female', 'Other'], nullable: true },
+                        profile_photo: { type: 'string', nullable: true },
+                        status: { type: 'string', nullable: true },
+                        lifecycle_state: { type: 'string', nullable: true },
+                        email: { type: 'string', nullable: true },
+                        mobile: { type: 'string', nullable: true },
+                        alternate_mobile: { type: 'string', nullable: true },
+                        personal_email: { type: 'string', nullable: true },
+                        department_id: { type: 'integer', nullable: true },
+                        department_name: { type: 'string', nullable: true },
+                        designation_id: { type: 'integer', nullable: true },
+                        designation_name: { type: 'string', nullable: true },
+                        location_id: { type: 'integer', nullable: true },
+                        location_name: { type: 'string', nullable: true },
+                        role_id: { type: 'integer', nullable: true },
+                        role_name: { type: 'string', nullable: true },
+                        employment_type: { type: 'string', nullable: true },
+                        employment_status: { type: 'string', nullable: true },
+                        date_of_joining: { type: 'string', format: 'date', nullable: true },
+                        user_id: { type: 'integer', nullable: true },
+                        username: { type: 'string', nullable: true },
+                        created_at: { type: 'string', format: 'date-time' },
+                        updated_at: { type: 'string', format: 'date-time' },
                     },
                 },
                 TwoFactorSetup: {
@@ -188,6 +242,7 @@ This API uses JWT Bearer token authentication.
                     type: 'object',
                     properties: {
                         success: { type: 'boolean', example: true },
+                        statusCode: { type: 'integer', example: 200 },
                         message: { type: 'string', example: 'Users retrieved successfully' },
                         data: { type: 'array', items: {} },
                         meta: {

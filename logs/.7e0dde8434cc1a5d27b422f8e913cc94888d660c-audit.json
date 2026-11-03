@@ -19,6 +19,36 @@
             "date": 1777746777879,
             "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-05-03.log",
             "hash": "7351d968998af30ef50179c44ae3b87910c069302776f5d69a7189236468d576"
+        },
+        {
+            "date": 1778049814197,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-05-06.log",
+            "hash": "ed3cd68bd332c2d8aa1e2cada4d28dcca188dc42204660b0a1db12a451abf06a"
+        },
+        {
+            "date": 1778568090296,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-05-12.log",
+            "hash": "37a8e8e7bb28f7ab9ef30f75ffd166efc49a35ab4408aac6a320ef40c75ee12b"
+        },
+        {
+            "date": 1778688508696,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-05-13.log",
+            "hash": "688077536ff516ee9ac0c5e49e21ef9e0a9c663e93c45aec6f5aff9fc08b2c86"
+        },
+        {
+            "date": 1786883266112,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-08-16.log",
+            "hash": "a895caa94e45d8a48a3fbd9d43e3f5c5ef4f343bb3fb4e97d3afc14d5c945638"
+        },
+        {
+            "date": 1793640505525,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-11-02.log",
+            "hash": "8b1ceafee3b0cdfe977631aa9eca5fd107f8ba0d6b14aa1bc4af12f7f071d094"
+        },
+        {
+            "date": 1793728591517,
+            "name": "D:\\hrm-newbknd\\hrm\\logs\\error-2026-11-03.log",
+            "hash": "027881a91ca6379e5defd9dc3aebad10d54e02ca0f51a9b031f449897e00bdda"
         }
     ],
     "hashType": "sha256"

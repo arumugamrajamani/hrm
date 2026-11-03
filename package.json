@@ -43,7 +43,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "mysql2": "^3.6.5",
-    "nodemailer": "^6.9.7",
+    "nodemailer": "^8.0.7",
     "rate-limit-redis": "^4.2.0",
     "redis": "^4.6.12",
     "swagger-jsdoc": "^6.2.8",

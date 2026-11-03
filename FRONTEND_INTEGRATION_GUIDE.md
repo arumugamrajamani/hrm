@@ -21,7 +21,7 @@ A comprehensive guide for frontend developers to integrate with the Education an
 
 ### Base Configuration
 ```javascript
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:3000/api/v1';
 const AUTH_TOKEN_KEY = 'hrm_auth_token';
 ```
 
@@ -29,9 +29,9 @@ const AUTH_TOKEN_KEY = 'hrm_auth_token';
 
 | Category | Operations | Base Path |
 |----------|------------|-----------|
-| Education | CRUD, Activate/Deactivate, Get Courses | `/api/education` |
-| Course | CRUD, Activate/Deactivate, Get Educations | `/api/courses` |
-| Mapping | Create, Delete, Get All | `/api/education-course` |
+| Education | CRUD, Activate/Deactivate, Get Courses | `/api/v1/education` |
+| Course | CRUD, Activate/Deactivate, Get Educations | `/api/v1/courses` |
+| Mapping | Create, Delete, Get All | `/api/v1/education-course` |
 
 ---
 
@@ -50,7 +50,7 @@ const getAuthHeaders = () => {
 
 ### Login Flow
 ```javascript
-// POST /api/auth/login
+// POST /api/v1/auth/login
 const login = async (email, password) => {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -62,6 +62,7 @@ const login = async (email, password) => {
   
   if (data.success) {
     localStorage.setItem(AUTH_TOKEN_KEY, data.data.accessToken);
+    localStorage.setItem('hrm_refresh_token', data.data.refreshToken);
     return data.data;
   }
   
@@ -75,7 +76,7 @@ const login = async (email, password) => {
 
 ### 1. Get All Educations
 
-**Endpoint:** `GET /api/education`
+**Endpoint:** `GET /api/v1/education`
 
 **Query Parameters:**
 ```javascript
@@ -125,11 +126,13 @@ const getEducations = async (filters = {}) => {
       "created_by_username": "superadmin"
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 5,
-    "totalPages": 1
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 5,
+      "totalPages": 1
+    }
   }
 }
 ```
@@ -138,7 +141,7 @@ const getEducations = async (filters = {}) => {
 
 ### 2. Get Education by ID
 
-**Endpoint:** `GET /api/education/:id`
+**Endpoint:** `GET /api/v1/education/:id`
 
 **Example Request:**
 ```javascript
@@ -183,7 +186,7 @@ const getEducationById = async (id) => {
 
 ### 3. Create Education (Admin Only)
 
-**Endpoint:** `POST /api/education`
+**Endpoint:** `POST /api/v1/education`
 
 **Request Body:**
 ```javascript
@@ -239,7 +242,7 @@ const createEducation = async (educationData) => {
 
 ### 4. Update Education (Admin Only)
 
-**Endpoint:** `PUT /api/education/:id`
+**Endpoint:** `PUT /api/v1/education/:id`
 
 **Example Request:**
 ```javascript
@@ -270,7 +273,7 @@ updateEducation(1, {
 
 ### 5. Delete Education (Soft Delete - Admin Only)
 
-**Endpoint:** `DELETE /api/education/:id`
+**Endpoint:** `DELETE /api/v1/education/:id`
 
 **Note:** Soft delete sets status to 'inactive', not permanent deletion.
 
@@ -296,8 +299,8 @@ const deleteEducation = async (id) => {
 ### 6. Activate/Deactivate Education (Admin Only)
 
 **Endpoint:** 
-- `PATCH /api/education/:id/activate`
-- `PATCH /api/education/:id/deactivate`
+- `PATCH /api/v1/education/:id/activate`
+- `PATCH /api/v1/education/:id/deactivate`
 
 ```javascript
 const activateEducation = async (id) => {
@@ -323,7 +326,7 @@ const deactivateEducation = async (id) => {
 
 ### 7. Get Courses by Education
 
-**Endpoint:** `GET /api/education/:id/courses`
+**Endpoint:** `GET /api/v1/education/:id/courses`
 
 ```javascript
 const getCoursesByEducation = async (educationId) => {
@@ -383,7 +386,7 @@ const getCoursesByEducation = async (educationId) => {
 
 ### 1. Get All Courses
 
-**Endpoint:** `GET /api/courses`
+**Endpoint:** `GET /api/v1/courses`
 
 **Query Parameters:**
 ```javascript
@@ -429,11 +432,13 @@ const getCourses = async (filters = {}) => {
       "created_by_username": "superadmin"
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 5,
-    "totalPages": 1
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 5,
+      "totalPages": 1
+    }
   }
 }
 ```
@@ -442,7 +447,7 @@ const getCourses = async (filters = {}) => {
 
 ### 2. Get Course by ID
 
-**Endpoint:** `GET /api/courses/:id`
+**Endpoint:** `GET /api/v1/courses/:id`
 
 ```javascript
 const getCourseById = async (id) => {
@@ -458,7 +463,7 @@ const getCourseById = async (id) => {
 
 ### 3. Create Course (Admin Only)
 
-**Endpoint:** `POST /api/courses`
+**Endpoint:** `POST /api/v1/courses`
 
 **Request Body:**
 ```javascript
@@ -497,7 +502,7 @@ const createCourse = async (courseData) => {
 
 ### 4. Update Course (Admin Only)
 
-**Endpoint:** `PUT /api/courses/:id`
+**Endpoint:** `PUT /api/v1/courses/:id`
 
 ```javascript
 const updateCourse = async (id, updateData) => {
@@ -515,7 +520,7 @@ const updateCourse = async (id, updateData) => {
 
 ### 5. Delete Course (Soft Delete - Admin Only)
 
-**Endpoint:** `DELETE /api/courses/:id`
+**Endpoint:** `DELETE /api/v1/courses/:id`
 
 ```javascript
 const deleteCourse = async (id) => {
@@ -532,7 +537,7 @@ const deleteCourse = async (id) => {
 
 ### 6. Get Educations by Course
 
-**Endpoint:** `GET /api/courses/:id/educations`
+**Endpoint:** `GET /api/v1/courses/:id/educations`
 
 ```javascript
 const getEducationsByCourse = async (courseId) => {
@@ -587,7 +592,7 @@ const getEducationsByCourse = async (courseId) => {
 
 ### 1. Get All Mappings
 
-**Endpoint:** `GET /api/education-course`
+**Endpoint:** `GET /api/v1/education-course`
 
 ```javascript
 const getAllMappings = async () => {
@@ -625,7 +630,7 @@ const getAllMappings = async () => {
 
 ### 2. Create Mapping (Admin Only)
 
-**Endpoint:** `POST /api/education-course`
+**Endpoint:** `POST /api/v1/education-course`
 
 **Request Body:**
 ```javascript
@@ -662,7 +667,7 @@ const createMapping = async (mappingData) => {
 
 ### 3. Delete Mapping (Admin Only)
 
-**Endpoint:** `DELETE /api/education-course/:id`
+**Endpoint:** `DELETE /api/v1/education-course/:id`
 
 ```javascript
 const deleteMapping = async (mappingId) => {
@@ -740,6 +745,7 @@ interface EducationCourseMap {
 ```typescript
 interface ApiResponse<T> {
   success: boolean;
+  statusCode: number;
   message: string;
   data?: T;
   errors?: Array<{
@@ -749,11 +755,13 @@ interface ApiResponse<T> {
 }
 
 interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
+  meta: {
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   };
 }
 ```
@@ -787,7 +795,7 @@ const EducationManagement = () => {
       
       if (data.success) {
         setEducations(data.data);
-        setPagination(data.pagination);
+        setPagination(data.meta.pagination);
       } else {
         setError(data.message);
       }
@@ -822,7 +830,7 @@ const EducationManagement = () => {
 // educationService.js
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:3000/api/v1';
 
 const educationService = {
   async getAll(filters) {
@@ -927,7 +935,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class EducationService {
-  private apiUrl = 'http://localhost:3000/api';
+  private apiUrl = 'http://localhost:3000/api/v1';
 
   constructor(private http: HttpClient) {}
 
@@ -1283,7 +1291,7 @@ try {
 ```javascript
 // apiConfig.js
 const API_CONFIG = {
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3000/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1',
   timeout: 30000,
   retryAttempts: 3
 };
@@ -1682,6 +1690,12 @@ const EducationDetails = ({ educationId }) => {
 
 ## 🔄 Changelog
 
+- **v2.0.0** (2026-11-02)
+  - Aligned all documented API base paths and endpoints to the current `/api/v1` prefix
+  - Corrected paginated response envelope (`meta.pagination`)
+  - Added refresh token persistence and 2FA-aware login flow documentation
+  - Expanded validation, error handling, security, and performance guidance
+
 - **v1.0.0** (2026-03-30)
   - Initial release
   - Education CRUD operations
@@ -1692,5 +1706,5 @@ const EducationDetails = ({ educationId }) => {
 
 ---
 
-**Last Updated:** March 30, 2026
-**Version:** 1.0.0
+**Last Updated:** November 2, 2026  
+**Version:** 2.0.0

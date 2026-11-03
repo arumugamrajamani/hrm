@@ -129,7 +129,6 @@ CREATE TABLE users (
     mobile VARCHAR(15),
     role_id INT NOT NULL,
     account_status VARCHAR(20) DEFAULT 'active',
-    profile_photo VARCHAR(255) NULL,
     two_factor_enabled BOOLEAN DEFAULT FALSE,
     password_changed_at DATETIME NULL,
     last_login DATETIME NULL,
@@ -139,8 +138,7 @@ CREATE TABLE users (
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     INDEX idx_username (username),
     INDEX idx_email (email),
-    INDEX idx_account_status (account_status),
-    INDEX idx_profile_photo (profile_photo)
+    INDEX idx_account_status (account_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ===============================================

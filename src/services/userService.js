@@ -45,8 +45,7 @@ class UserService {
             email,
             mobile,
             password: passwordHash,
-            role_id,
-            profile_photo: userData.profile_photo
+            role_id
         });
 
         return { userId, message: 'User created successfully' };
@@ -89,7 +88,7 @@ class UserService {
         await sendEmail(
             email,
             'Welcome to HRM System',
-            getWelcomeEmailTemplate(username, generatedPassword, config.FRONTEND_URL)
+            getWelcomeEmailTemplate(username, username, generatedPassword, config.FRONTEND_URL)
         );
 
         return { userId, message: 'User created and credentials sent via email' };

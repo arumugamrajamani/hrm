@@ -142,17 +142,76 @@ class EmployeeModel {
         try {
             await conn.beginTransaction();
 
-            const employeeCode = await EmployeeModel.generateEmployeeCode();
+            const employeeCode = employeeData.employee_code || await EmployeeModel.generateEmployeeCode();
             
-            const { first_name, last_name, date_of_birth, gender, profile_photo, created_by } = employeeData;
+            const { 
+                first_name, last_name, date_of_birth, gender, profile_photo, created_by,
+                lifecycle_state = 'draft'
+            } = employeeData;
             
             const [empResult] = await conn.query(
-                `INSERT INTO employees (employee_code, first_name, last_name, date_of_birth, gender, profile_photo, created_by, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-                [employeeCode, first_name, last_name, date_of_birth || null, gender || null, profile_photo || null, created_by || null]
+                `INSERT INTO employees (employee_code, first_name, last_name, date_of_birth, gender, profile_photo, lifecycle_state, created_by, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                [employeeCode, first_name, last_name, date_of_birth || null, gender || null, profile_photo || null, lifecycle_state, created_by || null]
             );
             
             const employeeId = empResult.insertId;
+
+            if (employeeData.email || employeeData.mobile || employeeData.alternate_mobile || 
+                employeeData.personal_email || employeeData.linkedin_url ||
+                employeeData.emergency_contact_name || employeeData.emergency_contact_relation || 
+                employeeData.emergency_contact_mobile) {
+                
+                await conn.query(
+                    `INSERT INTO employee_contact_details (
+                        employee_id, email, mobile, alternate_mobile, personal_email, linkedin_url,
+                        emergency_contact_name, emergency_contact_relation, emergency_contact_mobile,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                    [
+                        employeeId,
+                        employeeData.email || null,
+                        employeeData.mobile || null,
+                        employeeData.alternate_mobile || null,
+                        employeeData.personal_email || null,
+                        employeeData.linkedin_url || null,
+                        employeeData.emergency_contact_name || null,
+                        employeeData.emergency_contact_relation || null,
+                        employeeData.emergency_contact_mobile || null
+                    ]
+                );
+            }
+
+            if (employeeData.department_id || employeeData.designation_id || employeeData.location_id ||
+                employeeData.role_id || employeeData.reporting_manager_id || employeeData.employment_type ||
+                employeeData.employment_status || employeeData.date_of_joining) {
+                
+                const effectiveStart = employeeData.effective_start_date || new Date();
+                
+                await conn.query(
+                    `INSERT INTO employee_job_details (
+                        employee_id, department_id, designation_id, location_id,
+                        role_id, reporting_manager_id, employment_type, employment_status,
+                        date_of_joining, confirmation_date, is_current, effective_start_date, created_by, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                    [
+                        employeeId,
+                        employeeData.department_id || null,
+                        employeeData.designation_id || null,
+                        employeeData.location_id || null,
+                        employeeData.role_id || null,
+                        employeeData.reporting_manager_id || null,
+                        employeeData.employment_type || 'full_time',
+                        employeeData.employment_status || 'active',
+                        employeeData.date_of_joining || null,
+                        employeeData.confirmation_date || null,
+                        true,
+                        effectiveStart,
+                        created_by || null
+                    ]
+                );
+            }
+
             await conn.commit();
             
             return { id: employeeId, employee_code: employeeCode };
@@ -326,6 +385,120 @@ class EmployeeModel {
         return rows;
     }
 
+    static async getFullProfile(employeeId) {
+        const employee = await EmployeeModel.findById(employeeId);
+        if (!employee) return null;
+
+        const [jobDetails, addresses, bankDetails, education, experience, documents, emergencyContacts] =
+            await Promise.all([
+                EmployeeModel.getJobDetails(employeeId),
+                EmployeeModel.getAddresses(employeeId),
+                EmployeeModel.getBankDetails(employeeId),
+                EmployeeModel.getEducation(employeeId),
+                EmployeeModel.getExperience(employeeId),
+                EmployeeModel.getDocuments(employeeId),
+                EmployeeModel.getEmergencyContacts(employeeId)
+            ]);
+
+        const hasContact = employee.contact_id || employee.email || employee.mobile ||
+            employee.alternate_mobile || employee.personal_email || employee.linkedin_url ||
+            employee.emergency_contact_name || employee.emergency_contact_relation ||
+            employee.emergency_contact_mobile;
+
+        const contact = hasContact ? {
+            id: employee.contact_id || null,
+            email: employee.email || null,
+            mobile: employee.mobile || null,
+            alternate_mobile: employee.alternate_mobile || null,
+            personal_email: employee.personal_email || null,
+            linkedin_url: employee.linkedin_url || null,
+            emergency_contact_name: employee.emergency_contact_name || null,
+            emergency_contact_relation: employee.emergency_contact_relation || null,
+            emergency_contact_mobile: employee.emergency_contact_mobile || null
+        } : null;
+
+        return {
+            employee,
+            contact,
+            job_details: jobDetails,
+            current_job: jobDetails.find(jd => Boolean(jd.is_current)) || null,
+            addresses,
+            current_address: addresses.find(a => Boolean(a.is_current)) || null,
+            bank_details: bankDetails,
+            current_bank_details: bankDetails.find(b => Boolean(b.is_current)) || null,
+            education,
+            experience,
+            documents,
+            emergency_contacts: emergencyContacts
+        };
+    }
+
+    static async getEmergencyContacts(employeeId) {
+        const query = `
+            SELECT eec.*, u.username as created_by_username
+            FROM employee_emergency_contacts eec
+            LEFT JOIN users u ON eec.created_by = u.id
+            WHERE eec.employee_id = ?
+            ORDER BY eec.priority_order ASC, eec.id ASC
+        `;
+        const [rows] = await pool.query(query, [employeeId]);
+        if (rows.length > 0) return rows;
+
+        // Backwards compatibility: the primary contact may only exist on employee_contact_details
+        const fallbackQuery = `
+            SELECT
+                cd.id,
+                cd.employee_id,
+                cd.emergency_contact_name AS name,
+                cd.emergency_contact_relation AS relation,
+                cd.emergency_contact_mobile AS mobile,
+                cd.created_at,
+                cd.updated_at
+            FROM employee_contact_details cd
+            WHERE cd.employee_id = ?
+              AND (cd.emergency_contact_name IS NOT NULL
+                OR cd.emergency_contact_relation IS NOT NULL
+                OR cd.emergency_contact_mobile IS NOT NULL)
+            ORDER BY cd.id ASC
+        `;
+        const [fallbackRows] = await pool.query(fallbackQuery, [employeeId]);
+        return fallbackRows;
+    }
+
+    static async getReportingEmployees(managerId) {
+        const query = `
+            SELECT
+                e.id,
+                e.employee_code,
+                e.first_name,
+                e.last_name,
+                CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) AS full_name,
+                e.profile_photo,
+                e.lifecycle_state,
+                jd.department_id,
+                d.department_name,
+                jd.designation_id,
+                dm.designation_name,
+                jd.location_id,
+                lm.location_name,
+                jd.employment_type,
+                jd.employment_status,
+                jd.date_of_joining,
+                jd.reporting_manager_id
+            FROM employees e
+            INNER JOIN employee_job_details jd
+                ON e.id = jd.employee_id AND jd.is_current = TRUE
+            LEFT JOIN departments d ON jd.department_id = d.id
+            LEFT JOIN designations_master dm ON jd.designation_id = dm.id
+            LEFT JOIN locations_master lm ON jd.location_id = lm.id
+            WHERE jd.reporting_manager_id = ?
+              AND e.deleted_at IS NULL
+            ORDER BY e.first_name ASC, e.last_name ASC
+        `;
+        const [rows] = await pool.query(query, [managerId]);
+        return rows;
+    }
+
     static async changeLifecycleState(employeeId, { fromState, toState, reason, remarks, changedBy, effectiveDate = new Date() }) {
         const conn = await pool.getConnection();
         try {
@@ -340,7 +513,7 @@ class EmployeeModel {
                 throw new Error('Employee not found');
             }
 
-            const currentState = currentState = currentEmployee[0].lifecycle_state || 'draft';
+            const currentState = currentEmployee[0].lifecycle_state || 'draft';
 
             const [stateCheck] = await conn.query(
                 'SELECT allowed_transitions FROM employee_lifecycle_states WHERE state_code = ?',

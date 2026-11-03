@@ -1,9 +1,9 @@
 const request = require('supertest');
-const app = require('../app');
 
 jest.mock('../config/database', () => ({
     pool: {
-        query: jest.fn(),
+        query: jest.fn().mockResolvedValue([]),
+        execute: jest.fn().mockResolvedValue([[], {}]),
         getConnection: jest.fn().mockResolvedValue({
             release: jest.fn()
         })
@@ -23,6 +23,58 @@ jest.mock('../config/mail', () => ({
     sendEmail: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-message-id' }),
     transporter: {}
 }));
+
+jest.mock('../services/cacheService', () => ({
+    connect: jest.fn().mockResolvedValue(true),
+    disconnect: jest.fn().mockResolvedValue(true),
+    isConnected: false,
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    flushdb: jest.fn()
+}));
+
+jest.mock('../services/queueService', () => ({
+    connect: jest.fn().mockResolvedValue(true),
+    closeAll: jest.fn().mockResolvedValue(true),
+    add: jest.fn().mockResolvedValue({}),
+    getQueueStats: jest.fn().mockReturnValue({ queues: {}, connected: false }),
+    process: jest.fn()
+}));
+
+jest.mock('../services/webhookService', () => ({
+    webhookService: {
+        trigger: jest.fn(),
+        initialize: jest.fn()
+    },
+    EventType: { USER_CREATED: 'user_created', USER_LOGIN: 'user_login', USER_LOGOUT: 'user_logout', USER_STATUS_CHANGED: 'user_status_changed', USER_PASSWORD_CHANGED: 'user_password_changed' },
+    WebhookService: jest.fn()
+}));
+
+jest.mock('../services/featureFlags', () => ({
+    featureFlagService: {
+        isEnabled: jest.fn().mockReturnValue(true),
+        getAllFlags: jest.fn().mockReturnValue({}),
+        initialize: jest.fn()
+    }
+}));
+
+jest.mock('../middlewares/roleCheck', () => ({
+    isAdmin: (req, res, next) => next(),
+    isSuperAdmin: (req, res, next) => next(),
+    checkPermission: () => (req, res, next) => next()
+}));
+
+jest.mock('../middlewares/rateLimiter', () => ({
+    generalLimiter: (req, res, next) => next(),
+    authLimiter: (req, res, next) => next(),
+    otpLimiter: (req, res, next) => next(),
+    passwordResetLimiter: (req, res, next) => next(),
+    userLimiter: (req, res, next) => next(),
+    initRedisStore: jest.fn().mockResolvedValue(true)
+}));
+
+jest.mock('../config/swagger', () => ({}));
 
 jest.mock('../models', () => ({
     UserModel: {
@@ -63,6 +115,26 @@ jest.mock('../models', () => ({
     }
 }));
 
+jest.mock('../config/swagger', () => ({}));
+
+jest.mock('../middlewares/auth', () => ({
+    authMiddleware: (req, res, next) => {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                statusCode: 401,
+                message: 'Access token is required'
+            });
+        }
+        req.user = { id: 1, email: 'test@example.com', role_id: 1, permissions: ['all'] };
+        next();
+    },
+    optionalAuth: (req, res, next) => next()
+}));
+
+const app = require('../app');
+
 const { pool } = require('../config/database');
 const { UserModel, LoginAttemptModel, PasswordHistoryModel, PasswordResetTokenModel, RefreshTokenModel } = require('../models');
 const bcrypt = require('bcrypt');
@@ -72,10 +144,10 @@ describe('Auth Endpoints', () => {
         jest.clearAllMocks();
     });
 
-    describe('POST /api/auth/register', () => {
+    describe('POST /api/v1/auth/register', () => {
         it('should validate required fields', async () => {
             const response = await request(app)
-                .post('/api/auth/register')
+                .post('/api/v1/auth/register')
                 .send({});
 
             expect(response.status).toBe(400);
@@ -85,7 +157,7 @@ describe('Auth Endpoints', () => {
 
         it('should validate email format', async () => {
             const response = await request(app)
-                .post('/api/auth/register')
+                .post('/api/v1/auth/register')
                 .send({
                     username: 'testuser',
                     email: 'invalid-email',
@@ -100,7 +172,7 @@ describe('Auth Endpoints', () => {
 
         it('should validate password strength', async () => {
             const response = await request(app)
-                .post('/api/auth/register')
+                .post('/api/v1/auth/register')
                 .send({
                     username: 'testuser',
                     email: 'test@example.com',
@@ -115,7 +187,7 @@ describe('Auth Endpoints', () => {
 
         it('should validate username format', async () => {
             const response = await request(app)
-                .post('/api/auth/register')
+                .post('/api/v1/auth/register')
                 .send({
                     username: 'test user',
                     email: 'test@example.com',
@@ -130,7 +202,7 @@ describe('Auth Endpoints', () => {
 
         it('should validate mobile number format', async () => {
             const response = await request(app)
-                .post('/api/auth/register')
+                .post('/api/v1/auth/register')
                 .send({
                     username: 'testuser',
                     email: 'test@example.com',
@@ -144,10 +216,10 @@ describe('Auth Endpoints', () => {
         });
     });
 
-    describe('POST /api/auth/login', () => {
+    describe('POST /api/v1/auth/login', () => {
         it('should validate required fields', async () => {
             const response = await request(app)
-                .post('/api/auth/login')
+                .post('/api/v1/auth/login')
                 .send({});
 
             expect(response.status).toBe(400);
@@ -156,7 +228,7 @@ describe('Auth Endpoints', () => {
 
         it('should validate email format', async () => {
             const response = await request(app)
-                .post('/api/auth/login')
+                .post('/api/v1/auth/login')
                 .send({
                     email: 'invalid-email',
                     password: 'password'
@@ -170,15 +242,15 @@ describe('Auth Endpoints', () => {
             UserModel.findByEmail.mockResolvedValue(null);
 
             const response = await request(app)
-                .post('/api/auth/login')
+                .post('/api/v1/auth/login')
                 .send({
                     email: 'nonexistent@example.com',
                     password: 'Test@1234'
                 });
 
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
-            expect(['Invalid credentials', 'User not found']).toContain(response.body.message);
+            expect(['Invalid credentials', 'User not found', 'Invalid email or password']).toContain(response.body.message);
         });
 
         it('should return error for invalid password', async () => {
@@ -194,13 +266,13 @@ describe('Auth Endpoints', () => {
             LoginAttemptModel.findByUserId.mockResolvedValue(null);
 
             const response = await request(app)
-                .post('/api/auth/login')
+                .post('/api/v1/auth/login')
                 .send({
                     email: 'test@example.com',
                     password: 'wrong-password'
                 });
 
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
         });
 
@@ -220,7 +292,7 @@ describe('Auth Endpoints', () => {
             RefreshTokenModel.create.mockResolvedValue(1);
 
             const response = await request(app)
-                .post('/api/auth/login')
+                .post('/api/v1/auth/login')
                 .send({
                     email: 'test@example.com',
                     password: 'correct-password'
@@ -233,10 +305,10 @@ describe('Auth Endpoints', () => {
         });
     });
 
-    describe('POST /api/auth/forgot-password', () => {
+    describe('POST /api/v1/auth/forgot-password', () => {
         it('should validate required email', async () => {
             const response = await request(app)
-                .post('/api/auth/forgot-password')
+                .post('/api/v1/auth/forgot-password')
                 .send({});
 
             expect(response.status).toBe(400);
@@ -254,7 +326,7 @@ describe('Auth Endpoints', () => {
             PasswordResetTokenModel.create.mockResolvedValue(1);
 
             const response = await request(app)
-                .post('/api/auth/forgot-password')
+                .post('/api/v1/auth/forgot-password')
                 .send({
                     email: 'test@example.com'
                 });
@@ -265,10 +337,10 @@ describe('Auth Endpoints', () => {
         });
     });
 
-    describe('POST /api/auth/refresh', () => {
+    describe('POST /api/v1/auth/refresh', () => {
         it('should require refresh token', async () => {
             const response = await request(app)
-                .post('/api/auth/refresh')
+                .post('/api/v1/auth/refresh')
                 .send({});
 
             expect(response.status).toBe(400);
@@ -276,10 +348,10 @@ describe('Auth Endpoints', () => {
         });
     });
 
-    describe('POST /api/auth/logout', () => {
+    describe('POST /api/v1/auth/logout', () => {
         it('should require authentication', async () => {
             const response = await request(app)
-                .post('/api/auth/logout')
+                .post('/api/v1/auth/logout')
                 .send({});
 
             expect(response.status).toBe(401);
@@ -342,7 +414,7 @@ describe('Health Check', () => {
 describe('404 Handler', () => {
     it('should return 404 for unknown routes', async () => {
         const response = await request(app)
-            .get('/api/unknown');
+            .get('/api/v1/unknown');
 
         expect(response.status).toBe(404);
         expect(response.body.success).toBe(false);

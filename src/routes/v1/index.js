@@ -3,7 +3,6 @@ const router = express.Router();
 
 const authRoutes = require('../authRoutes');
 const userRoutes = require('../userRoutes');
-const employeeRoutes = require('../employeeRoutes');
 const onboardingRoutes = require('../onboardingRoutes');
 const masterDataRoutes = require('../masterDataRoutes');
 const attendanceRoutes = require('../attendanceRoutes');
@@ -19,12 +18,11 @@ const auditRoutes = require('../auditRoutes');
 const systemRoutes = require('../systemRoutes');
 const payrollRoutes = require('../payrollRoutes');
 const shiftRoutes = require('../shiftRoutes');
+const employeeRoutes = require('../employeeRoutes');
 
 router.use('/auth', authRoutes);
 
 router.use('/users', userRoutes);
-
-router.use('/employees', employeeRoutes);
 
 router.use('/onboarding', onboardingRoutes);
 
@@ -55,5 +53,7 @@ router.use('/system', systemRoutes);
 router.use('/payroll', payrollRoutes);
 
 router.use('/shifts', shiftRoutes);
+
+router.use('/employees', employeeRoutes);
 
 module.exports = router;

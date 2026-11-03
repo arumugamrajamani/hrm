@@ -1,16 +1,35 @@
 # HRM System - New Modules Documentation
 
-This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboarding**, and **Master Data**. All APIs are prefixed with `/api/v1`.
+This document covers the new modules: **Attendance**, **Payroll**, **Onboarding**, and **Master Data**. All APIs are prefixed with `/api/v1`.
+
+Module versions aligned with HRM system **v2.0.0**.
 
 ---
 
 ## Table of Contents
-1. [Attendance Module](#attendance-module)
-2. [Payroll Module](#payroll-module)
-3. [Onboarding Module](#onboarding-module)
-4. [Master Data Module](#master-data-module)
-5. [Database Schema Summary](#database-schema-summary)
-6. [Data Relationships](#data-relationships)
+
+1. [Overview](#overview)
+2. [Attendance Module](#attendance-module)
+3. [Payroll Module](#payroll-module)
+4. [Onboarding Module](#onboarding-module)
+5. [Master Data Module](#master-data-module)
+6. [Database Schema Summary](#database-schema-summary)
+7. [Data Relationships](#data-relationships)
+8. [Response Format](#response-format)
+9. [Error Handling](#error-handling)
+
+---
+
+## Overview
+
+The New Modules phase added operational HR capabilities on top of the core employee foundation:
+
+- **Attendance & Leave**: shifts, holidays, attendance, leave, timesheets
+- **Payroll**: salary components, structures, runs, payslips, statutory config
+- **Onboarding**: checklist-driven onboarding, probation
+- **Master Data**: companies, business units, grades, checklist templates
+
+Each module follows the same layered pattern: `routes → controllers → services → models → mysql2 pool`.
 
 ---
 
@@ -20,11 +39,11 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 
 ### Shifts Management
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/shifts` | List all shifts (pagination, status filter) |
-| POST | `/shifts` | Create new shift |
-| PUT | `/shifts/:id` | Update shift |
+| Method | Endpoint | Description | Handler |
+|--------|----------|-------------|---------|
+| GET | `/shifts` | List all shifts (pagination, status filter) | shiftService.getAllShifts |
+| POST | `/shifts` | Create new shift | shiftService.createShift |
+| PUT | `/shifts/:id` | Update shift | shiftService.updateShift |
 
 **Create Shift Payload:**
 ```json
@@ -79,53 +98,10 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 }
 ```
 
-### Leave Types
+### Leave Types / Balances / Requests / Timesheets
+- `GET /leave-types`, `GET /leave-balances/:employeeId`, `POST /leave-balances/:employeeId/initialize`, `GET /leave-requests`, `POST /leave-requests`, `PATCH /leave-requests/:id/status`, `GET /timesheets`, `POST /timesheets`, `PATCH /timesheets/:id/status`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/leave-types` | List leave types |
-
-**Seed Data:** CL (12), SL (12), EL (15), ML (180), PL (15), LOP (0), COMP (0)
-
-### Leave Balances
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/leave-balances/:employeeId` | Get balances (optional year filter) |
-| POST | `/leave-balances/:employeeId/initialize` | Initialize balances for a year |
-
-**Initialize Payload:**
-```json
-{ "year": 2026 }
-```
-
-### Leave Requests
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/leave-requests` | List requests (employee, status, date range) |
-| POST | `/leave-requests` | Create leave request |
-| PATCH | `/leave-requests/:id/status` | Approve/reject request |
-
-**Create Request Payload:**
-```json
-{
-  "employee_id": 1,
-  "leave_type_id": 1,
-  "start_date": "2026-05-01",
-  "end_date": "2026-05-03",
-  "total_days": 3,
-  "reason": "Personal work"
-}
-```
-
-### Timesheets
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/timesheets` | List timesheets |
-| POST | `/timesheets` | Create timesheet entry |
-| PATCH | `/timesheets/:id/status` | Update status (submitted/approved/rejected) |
+**Seed Data (leave types):** CL (12), SL (12), EL (15), ML (180), PL (15), LOP (0), COMP (0)
 
 ---
 
@@ -134,7 +110,6 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 **Base Path:** `/api/v1/payroll`
 
 ### Salary Components
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/salary-components` | List (type, active filter) |
@@ -156,26 +131,19 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 }
 ```
 
-### Salary Structures
-
+### Salary Structures & Components
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/salary-structures` | List (active filter) |
 | GET | `/salary-structures/:id` | Get with components |
 | POST | `/salary-structures` | Create structure |
 | PUT | `/salary-structures/:id` | Update structure |
-| DELETE | `/salary-structures/:id` | Soft delete |
-
-**Structure Components:**
-| Method | Endpoint | Description |
-|--------|----------|-------------|
 | GET | `/salary-structures/:structureId/components` | Get components |
 | POST | `/salary-structures/:structureId/components` | Add component |
-| PUT | `/structure-components/:componentId` | Update component |
-| DELETE | `/structure-components/:componentId` | Remove component |
+| PUT | `/salary-structures/components/:componentId` | Update component |
+| DELETE | `/salary-structures/components/:componentId` | Remove component |
 
 ### Employee Salary (SCD Type 2)
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/employees/:employeeId/salary` | History (current_only=true) |
@@ -183,25 +151,7 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 | POST | `/employees/:employeeId/salary` | New revision (auto-expires previous) |
 | PUT | `/employee-salaries/:id` | Update record |
 
-**Create Salary Payload:**
-```json
-{
-  "structure_id": 1,
-  "basic_salary": 50000,
-  "total_earnings": 75000,
-  "total_deductions": 8500,
-  "net_salary": 66500,
-  "effective_from": "2026-04-01",
-  "revision_reason": "Annual revision",
-  "components": [
-    { "component_id": 1, "component_value": 50000 },
-    { "component_id": 2, "component_value": 20000 }
-  ]
-}
-```
-
-### Payroll Runs
-
+### Payroll Runs & Payslips
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/runs` | List (month, status filter) |
@@ -209,18 +159,12 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 | POST | `/runs` | Create run |
 | PUT | `/runs/:id` | Update run |
 | POST | `/runs/:id/process` | Process run |
-
-### Payslips
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
 | GET | `/payslips` | List (run, employee, month, status) |
 | GET | `/payslips/:id` | Get payslip |
 | POST | `/payslips` | Create payslip |
 | PUT | `/payslips/:id` | Update payslip |
 
 ### Tax & Statutory
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/tax/calculate` | Calculate tax for income |
@@ -228,7 +172,6 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 | GET | `/config/esi` | Get ESI configuration |
 
 ### Bonus Records
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/bonus` | List (employee, month, status) |
@@ -236,6 +179,7 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 | PUT | `/bonus/:id` | Update bonus |
 
 **Tax Configuration (FY 2024-25 New Regime):**
+
 | Slab | Min | Max | Rate |
 |------|-----|-----|------|
 | 1 | 0 | 3,00,000 | 0% |
@@ -251,8 +195,6 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 
 **Base Path:** `/api/v1/onboarding`
 
-### Onboarding Records
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | List (status, employee filter) |
@@ -260,23 +202,14 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 | GET | `/employee/:id` | Get by employee ID |
 | POST | `/` | Create (auto-generates checklist progress) |
 | PUT | `/:id` | Update |
+| PATCH | `/:onboardingId/checklist/:itemId` | Update item status |
 
 **Create Payload:**
 ```json
-{
-  "employee_id": 1,
-  "template_id": 1,
-  "joining_date": "2026-05-15"
-}
+{ "employee_id": 1, "template_id": 1, "joining_date": "2026-05-15" }
 ```
 
-### Checklist Progress
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| PATCH | `/:onboardingId/checklist/:itemId` | Update item status |
-
-**Update Payload:**
+**Update Checklist Item Payload:**
 ```json
 {
   "status": "completed",
@@ -286,30 +219,11 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 ```
 
 ### Probation Tracking
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/probation/:employeeId` | Get tracking |
 | POST | `/probation/:employeeId` | Create tracking |
 | PATCH | `/probation/:employeeId` | Update status |
-
-**Create Probation Payload:**
-```json
-{
-  "probation_start_date": "2026-05-15",
-  "probation_end_date": "2026-11-15"
-}
-```
-
-**Update Probation Payload:**
-```json
-{
-  "status": "confirmed",
-  "performance_rating": 4.5,
-  "manager_feedback": "Excellent performance",
-  "confirmation_date": "2026-11-15"
-}
-```
 
 ---
 
@@ -317,90 +231,13 @@ This document covers the 4 new modules: **Attendance**, **Payroll**, **Onboardin
 
 **Base Path:** `/api/v1/master`
 
-### Companies
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/companies` | List (status filter, includes unit count) |
-| GET | `/companies/:id` | Get by ID |
-| POST | `/companies` | Create |
-| PUT | `/companies/:id` | Update |
-
-**Create Payload:**
-```json
-{
-  "company_name": "Acme Corp",
-  "company_code": "ACME",
-  "registration_number": "U12345MH2020PLC123456",
-  "tax_id": "27AABCU9603R1ZM",
-  "address": "123 Business Park",
-  "city": "Mumbai",
-  "state": "Maharashtra",
-  "country": "India",
-  "phone": "+91-22-12345678",
-  "email": "info@acme.com",
-  "is_headquarters": true
-}
-```
-
-### Business Units
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/business-units` | List (company, status filter) |
-| GET | `/business-units/:id` | Get by ID |
-| POST | `/business-units` | Create |
-| PUT | `/business-units/:id` | Update |
-
-**Create Payload:**
-```json
-{
-  "unit_name": "Software Engineering",
-  "unit_code": "SWE",
-  "company_id": 1,
-  "parent_unit_id": null,
-  "head_of_unit": 1,
-  "cost_center": "CC-001"
-}
-```
-
-### Grades
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/grades` | List (band, status filter) |
-| GET | `/grades/:id` | Get by ID |
-| POST | `/grades` | Create |
-| PUT | `/grades/:id` | Update |
-
-**Create Payload:**
-```json
-{
-  "grade_code": "L5",
-  "grade_name": "Senior Engineer",
-  "level": 5,
-  "min_salary": 800000,
-  "max_salary": 1500000,
-  "band": "Professional"
-}
-```
-
-### Checklist Templates
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/checklist-templates` | List (active filter) |
-| GET | `/checklist-templates/:id` | Get with items |
-| POST | `/checklist-templates` | Create |
-| PUT | `/checklist-templates/:id` | Update |
-
-### Checklist Items
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/templates/:templateId/items` | Get items for template |
-| POST | `/checklist-items` | Create item |
-| PUT | `/checklist-items/:id` | Update item |
+| Module | Endpoints |
+|--------|-----------|
+| Companies | `GET /companies`, `GET /companies/:id`, `POST /companies`, `PUT /companies/:id` |
+| Business Units | `GET /business-units`, `GET /business-units/:id`, `POST /business-units`, `PUT /business-units/:id` |
+| Grades | `GET /grades`, `GET /grades/:id`, `POST /grades`, `PUT /grades/:id` |
+| Checklist Templates | `GET /checklist-templates`, `GET /checklist-templates/:id`, `POST /checklist-templates`, `PUT /checklist-templates/:id` |
+| Checklist Items | `GET /templates/:templateId/items`, `POST /checklist-items`, `PUT /checklist-items/:id` |
 
 ---
 
@@ -478,5 +315,65 @@ employees (1) ──→ (N) timesheets
 onboarding_checklist_templates (1) ──→ (N) checklist_items
 employees (1) ──→ (1) employee_onboarding
 employee_onboarding (1) ──→ (N) employee_checklist_progress
-employees (1) ──→ (N) probation_tracking
+employees (1) ──→ (1) probation_tracking
 ```
+
+---
+
+## Response Format
+
+### Success Response
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Operation successful",
+  "data": { }
+}
+```
+
+### Error Response
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Validation failed",
+  "errors": [
+    { "field": "employee_id", "message": "Employee ID is required" }
+  ]
+}
+```
+
+### Paginated Response
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Educations retrieved successfully",
+  "data": [ ... ],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 50,
+      "totalPages": 5
+    }
+  }
+}
+```
+
+---
+
+## Error Handling
+
+- Validation failures → `400 VALIDATION_ERROR` with `errors: [{field, message}]`
+- Not found → `404 NOT_FOUND` (message contains "not found")
+- Duplicate → `409 DUPLICATE` / `DUPLICATE_ENTRY`
+- Lock/deadlock → `503 DATABASE_LOCK_ERROR`
+- Rate limited → `429 TOO_MANY_REQUESTS`
+
+---
+
+## License
+
+MIT License — part of the HRM system.

@@ -42,7 +42,7 @@ class UserModel {
         const dataQuery = `
             SELECT 
                 u.id, u.employee_id, u.username, u.email, u.mobile, u.account_status as status, 
-                u.profile_photo, u.two_factor_enabled, u.password_changed_at, u.last_login,
+                e.profile_photo, u.two_factor_enabled, u.password_changed_at, u.last_login,
                 u.created_at, u.updated_at,
                 r.id as role_id, r.name as role_name,
                 e.employee_code, e.first_name, e.last_name,
@@ -71,7 +71,7 @@ class UserModel {
         const query = `
             SELECT 
                 u.id, u.employee_id, u.username, u.email, u.mobile, u.account_status as status, 
-                u.profile_photo, u.two_factor_enabled, u.password_changed_at, u.last_login,
+                e.profile_photo, u.two_factor_enabled, u.password_changed_at, u.last_login,
                 u.password, u.created_at, u.updated_at,
                 r.id as role_id, r.name as role_name,
                 e.employee_code, e.first_name, e.last_name,
@@ -116,19 +116,19 @@ class UserModel {
     }
 
     static async create(userData) {
-        const { username, email, mobile, password, role_id, employee_id, status = 'active', profile_photo, created_by } = userData;
+        const { username, email, mobile, password, role_id, employee_id, status = 'active', created_by } = userData;
         
         const query = `
-            INSERT INTO users (username, email, mobile, password, role_id, employee_id, account_status, profile_photo, password_changed_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+            INSERT INTO users (username, email, mobile, password, role_id, employee_id, account_status, password_changed_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
         `;
         
-        const [result] = await pool.query(query, [username, email, mobile, password, role_id, employee_id || null, status, profile_photo || null, created_by || null]);
+        const [result] = await pool.query(query, [username, email, mobile, password, role_id, employee_id || null, status, created_by || null]);
         return result.insertId;
     }
 
     static async update(id, userData) {
-        const allowedFields = ['username', 'email', 'mobile', 'role_id', 'account_status', 'profile_photo', 'updated_by'];
+        const allowedFields = ['username', 'email', 'mobile', 'role_id', 'account_status', 'updated_by'];
         const updates = [];
         const params = [];
 

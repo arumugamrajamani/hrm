@@ -205,6 +205,8 @@ const sanitizeResponseData = (data) => {
     return data;
 };
 
+const logger = require('./logger');
+
 const logSanitized = (level, message, data = {}) => {
     const sanitizedData = sanitizeLog(data);
     logger[level](message, sanitizedData);

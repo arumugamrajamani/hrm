@@ -1,6 +1,6 @@
 const config = require('../config');
 
-const getWelcomeEmailTemplate = (username, password, loginUrl) => {
+const getWelcomeEmailTemplate = (employeeName, username, password, loginUrl) => {
     return `
 <!DOCTYPE html>
 <html>
@@ -27,8 +27,8 @@ const getWelcomeEmailTemplate = (username, password, loginUrl) => {
             <h1>Welcome to HRM System!</h1>
         </div>
         <div class="content">
-            <p>Hello <strong>${username}</strong>,</p>
-            <p>Your account has been created successfully. Here are your login credentials:</p>
+            <p>Hello <strong>${employeeName}</strong>,</p>
+            <p>Your employee account has been created successfully. You can now access the HRM portal using the credentials below:</p>
             
             <div class="credentials">
                 <p><span class="credential-label">Username:</span> <span class="credential-value">${username}</span></p>
@@ -37,16 +37,17 @@ const getWelcomeEmailTemplate = (username, password, loginUrl) => {
             
             <p><strong>Important Security Notice:</strong></p>
             <ul>
-                <li>Please change your password immediately after logging in</li>
-                <li>Your password will expire in ${config.SECURITY.PASSWORD_EXPIRY_DAYS} days</li>
+                <li>Please change your password immediately after your first login</li>
+                <li>For security reasons, your password will expire in 90 days</li>
                 <li>Never share your password with anyone</li>
+                <li>Use a strong password with uppercase, lowercase, numbers and special characters</li>
             </ul>
             
             <a href="${loginUrl}" class="button">Login Now</a>
             
             <div class="warning">
                 <strong>⚠️ Security Reminder:</strong>
-                <p>If you did not request this account, please contact your system administrator immediately.</p>
+                <p>If you did not expect this account, please contact your HR administrator immediately.</p>
             </div>
         </div>
         <div class="footer">

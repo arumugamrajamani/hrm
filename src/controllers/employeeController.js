@@ -88,7 +88,7 @@ class EmployeeController {
             const { to_state, reason, remarks, effective_date } = req.body;
             
             const employee = await employeeService.changeLifecycleState(parseInt(id), {
-                toState,
+                toState: to_state,
                 reason,
                 remarks,
                 changedBy: req.user?.id || null,

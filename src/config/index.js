@@ -16,7 +16,7 @@ if (missingEnvVars.length > 0 && process.env.NODE_ENV === 'production') {
 
 const config = {
     ENV: process.env.NODE_ENV || 'development',
-    APP_VERSION: process.env.APP_VERSION || '1.0.0',
+    APP_VERSION: process.env.APP_VERSION || '2.0.0',
     PORT: parseInt(process.env.PORT) || 3000,
 
     DB: {

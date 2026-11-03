@@ -1,9 +1,9 @@
 const request = require('supertest');
-const app = require('../app');
 
 jest.mock('../config/database', () => ({
     pool: {
-        query: jest.fn(),
+        query: jest.fn().mockResolvedValue([]),
+        execute: jest.fn().mockResolvedValue([[], {}]),
         getConnection: jest.fn().mockResolvedValue({
             release: jest.fn()
         })
@@ -23,6 +23,58 @@ jest.mock('../config/mail', () => ({
     sendEmail: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-message-id' }),
     transporter: {}
 }));
+
+jest.mock('../services/cacheService', () => ({
+    connect: jest.fn().mockResolvedValue(true),
+    disconnect: jest.fn().mockResolvedValue(true),
+    isConnected: false,
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    flushdb: jest.fn()
+}));
+
+jest.mock('../services/queueService', () => ({
+    connect: jest.fn().mockResolvedValue(true),
+    closeAll: jest.fn().mockResolvedValue(true),
+    add: jest.fn().mockResolvedValue({}),
+    getQueueStats: jest.fn().mockReturnValue({ queues: {}, connected: false }),
+    process: jest.fn()
+}));
+
+jest.mock('../services/webhookService', () => ({
+    webhookService: {
+        trigger: jest.fn(),
+        initialize: jest.fn()
+    },
+    EventType: { USER_CREATED: 'user_created', USER_LOGIN: 'user_login', USER_LOGOUT: 'user_logout', USER_STATUS_CHANGED: 'user_status_changed', USER_PASSWORD_CHANGED: 'user_password_changed' },
+    WebhookService: jest.fn()
+}));
+
+jest.mock('../services/featureFlags', () => ({
+    featureFlagService: {
+        isEnabled: jest.fn().mockReturnValue(true),
+        getAllFlags: jest.fn().mockReturnValue({}),
+        initialize: jest.fn()
+    }
+}));
+
+jest.mock('../middlewares/roleCheck', () => ({
+    isAdmin: (req, res, next) => next(),
+    isSuperAdmin: (req, res, next) => next(),
+    checkPermission: () => (req, res, next) => next()
+}));
+
+jest.mock('../middlewares/rateLimiter', () => ({
+    generalLimiter: (req, res, next) => next(),
+    authLimiter: (req, res, next) => next(),
+    otpLimiter: (req, res, next) => next(),
+    passwordResetLimiter: (req, res, next) => next(),
+    userLimiter: (req, res, next) => next(),
+    initRedisStore: jest.fn().mockResolvedValue(true)
+}));
+
+jest.mock('../config/swagger', () => ({}));
 
 jest.mock('../models', () => ({
     UserModel: {
@@ -66,17 +118,36 @@ jest.mock('../models', () => ({
     }
 }));
 
+jest.mock('../config/swagger', () => ({}));
+
+jest.mock('../middlewares/auth', () => ({
+    authMiddleware: (req, res, next) => {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                statusCode: 401,
+                message: 'Access token is required'
+            });
+        }
+        req.user = { id: 1, email: 'test@example.com', role_id: 1, permissions: ['all'] };
+        next();
+    },
+    optionalAuth: (req, res, next) => next()
+}));
+
 const { UserModel, RoleModel } = require('../models');
+const app = require('../app');
 
 describe('User Endpoints', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    describe('GET /api/users', () => {
+    describe('GET /api/v1/users', () => {
         it('should require authentication', async () => {
             const response = await request(app)
-                .get('/api/users');
+                .get('/api/v1/users');
 
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
@@ -95,7 +166,7 @@ describe('User Endpoints', () => {
             });
 
             const response = await request(app)
-                .get('/api/users')
+                .get('/api/v1/users')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(200);
@@ -106,7 +177,7 @@ describe('User Endpoints', () => {
 
         it('should validate pagination parameters', async () => {
             const response = await request(app)
-                .get('/api/users?page=-1')
+                .get('/api/v1/users?page=-1')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(400);
@@ -114,7 +185,7 @@ describe('User Endpoints', () => {
         });
     });
 
-    describe('GET /api/users/:id', () => {
+    describe('GET /api/v1/users/:id', () => {
         it('should return user by id', async () => {
             UserModel.findById.mockResolvedValue({
                 id: 1,
@@ -124,7 +195,7 @@ describe('User Endpoints', () => {
             });
 
             const response = await request(app)
-                .get('/api/users/1')
+                .get('/api/v1/users/1')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(200);
@@ -136,7 +207,7 @@ describe('User Endpoints', () => {
             UserModel.findById.mockResolvedValue(null);
 
             const response = await request(app)
-                .get('/api/users/999')
+                .get('/api/v1/users/999')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(404);
@@ -145,7 +216,7 @@ describe('User Endpoints', () => {
 
         it('should validate id parameter', async () => {
             const response = await request(app)
-                .get('/api/users/invalid')
+                .get('/api/v1/users/invalid')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(400);
@@ -153,10 +224,10 @@ describe('User Endpoints', () => {
         });
     });
 
-    describe('POST /api/users', () => {
+    describe('POST /api/v1/users', () => {
         it('should require admin role', async () => {
             const response = await request(app)
-                .post('/api/users')
+                .post('/api/v1/users')
                 .send({
                     username: 'newuser',
                     email: 'new@example.com',
@@ -170,7 +241,7 @@ describe('User Endpoints', () => {
 
         it('should validate required fields', async () => {
             const response = await request(app)
-                .post('/api/users')
+                .post('/api/v1/users')
                 .set('Authorization', 'Bearer mock-token')
                 .send({});
 
@@ -187,7 +258,7 @@ describe('User Endpoints', () => {
             UserModel.create.mockResolvedValue(1);
 
             const response = await request(app)
-                .post('/api/users')
+                .post('/api/v1/users')
                 .set('Authorization', 'Bearer mock-token')
                 .send({
                     username: 'newuser',
@@ -206,7 +277,7 @@ describe('User Endpoints', () => {
             UserModel.emailExists.mockResolvedValue(true);
 
             const response = await request(app)
-                .post('/api/users')
+                .post('/api/v1/users')
                 .set('Authorization', 'Bearer mock-token')
                 .send({
                     username: 'newuser',
@@ -221,7 +292,7 @@ describe('User Endpoints', () => {
         });
     });
 
-    describe('PUT /api/users/:id', () => {
+    describe('PUT /api/v1/users/:id', () => {
         it('should update user with valid data', async () => {
             UserModel.findById.mockResolvedValue({
                 id: 1,
@@ -232,7 +303,7 @@ describe('User Endpoints', () => {
             UserModel.update.mockResolvedValue(true);
 
             const response = await request(app)
-                .put('/api/users/1')
+                .put('/api/v1/users/1')
                 .set('Authorization', 'Bearer mock-token')
                 .send({
                     username: 'updateduser'
@@ -247,7 +318,7 @@ describe('User Endpoints', () => {
             UserModel.findById.mockResolvedValue(null);
 
             const response = await request(app)
-                .put('/api/users/999')
+                .put('/api/v1/users/999')
                 .set('Authorization', 'Bearer mock-token')
                 .send({
                     username: 'updateduser'
@@ -257,7 +328,7 @@ describe('User Endpoints', () => {
         });
     });
 
-    describe('DELETE /api/users/:id', () => {
+    describe('DELETE /api/v1/users/:id', () => {
         it('should soft delete user', async () => {
             UserModel.findById.mockResolvedValue({
                 id: 1,
@@ -267,7 +338,7 @@ describe('User Endpoints', () => {
             UserModel.softDelete.mockResolvedValue(true);
 
             const response = await request(app)
-                .delete('/api/users/1')
+                .delete('/api/v1/users/1')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(200);
@@ -276,7 +347,7 @@ describe('User Endpoints', () => {
         });
     });
 
-    describe('PATCH /api/users/:id/activate', () => {
+    describe('PATCH /api/v1/users/:id/activate', () => {
         it('should activate user', async () => {
             UserModel.findById.mockResolvedValue({
                 id: 1,
@@ -286,7 +357,7 @@ describe('User Endpoints', () => {
             UserModel.activate.mockResolvedValue(true);
 
             const response = await request(app)
-                .patch('/api/users/1/activate')
+                .patch('/api/v1/users/1/activate')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(200);
@@ -295,7 +366,7 @@ describe('User Endpoints', () => {
         });
     });
 
-    describe('PATCH /api/users/:id/deactivate', () => {
+    describe('PATCH /api/v1/users/:id/deactivate', () => {
         it('should deactivate user', async () => {
             UserModel.findById.mockResolvedValue({
                 id: 1,
@@ -305,7 +376,7 @@ describe('User Endpoints', () => {
             UserModel.deactivate.mockResolvedValue(true);
 
             const response = await request(app)
-                .patch('/api/users/1/deactivate')
+                .patch('/api/v1/users/1/deactivate')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(200);
@@ -314,7 +385,7 @@ describe('User Endpoints', () => {
         });
     });
 
-    describe('GET /api/users/roles', () => {
+    describe('GET /api/v1/users/roles', () => {
         it('should return all roles', async () => {
             RoleModel.findAll.mockResolvedValue([
                 { id: 1, name: 'Super Admin' },
@@ -324,7 +395,7 @@ describe('User Endpoints', () => {
             ]);
 
             const response = await request(app)
-                .get('/api/users/roles')
+                .get('/api/v1/users/roles')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(200);
@@ -344,7 +415,7 @@ describe('User CRUD Operations', () => {
             UserModel.create.mockResolvedValue(5);
 
             const response = await request(app)
-                .post('/api/users')
+                .post('/api/v1/users')
                 .set('Authorization', 'Bearer mock-token')
                 .send({
                     username: 'newuser',
@@ -370,7 +441,7 @@ describe('User CRUD Operations', () => {
             });
 
             const response = await request(app)
-                .get('/api/users/1')
+                .get('/api/v1/users/1')
                 .set('Authorization', 'Bearer mock-token');
 
             expect(response.status).toBe(200);
@@ -389,7 +460,7 @@ describe('User CRUD Operations', () => {
             UserModel.update.mockResolvedValue(true);
 
             const response = await request(app)
-                .put('/api/users/1')
+                .put('/api/v1/users/1')
                 .set('Authorization', 'Bearer mock-token')
                 .send({
                     username: 'newusername',
@@ -406,7 +477,7 @@ describe('User CRUD Operations', () => {
 describe('Input Validation', () => {
     it('should reject invalid email format', async () => {
         const response = await request(app)
-            .post('/api/users')
+            .post('/api/v1/users')
             .set('Authorization', 'Bearer mock-token')
             .send({
                 username: 'newuser',
@@ -422,7 +493,7 @@ describe('Input Validation', () => {
 
     it('should reject invalid mobile format', async () => {
         const response = await request(app)
-            .post('/api/users')
+            .post('/api/v1/users')
             .set('Authorization', 'Bearer mock-token')
             .send({
                 username: 'newuser',
@@ -438,7 +509,7 @@ describe('Input Validation', () => {
 
     it('should reject username with special characters', async () => {
         const response = await request(app)
-            .post('/api/users')
+            .post('/api/v1/users')
             .set('Authorization', 'Bearer mock-token')
             .send({
                 username: 'user@name',
@@ -459,7 +530,7 @@ describe('Rate Limiting', () => {
         
         for (let i = 0; i < 101; i++) {
             const response = await request(app)
-                .get('/api/users')
+                .get('/api/v1/users')
                 .set('Authorization', 'Bearer mock-token');
             responses.push(response);
         }
