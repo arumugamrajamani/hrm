@@ -141,7 +141,7 @@ change-password → setup-2fa → verify-2fa-setup → disable-2fa
 - **Logging:** Winston daily-rotate files (`error-`, `combined-`, `audit-`, `security-*`) + Morgan → winston `http` level.
 - **Health:** `/health`, `/health/live`, `/health/ready`, `/health/detailed` (+ `/api/v1/system/*`).
 - **Metrics:** custom `MetricsService` → `/metrics`, `/metrics/json` (port 9090 via `METRICS_PORT`).
-- **Queues:** Bull (Redis DB 1) — `email`, `notifications`, `audit`, `webhook`, `export`.
+- **Queues:** Bull (Redis DB 1) — `email`, `notifications`, `audit`, `webhook`, `export`; if Redis is unavailable at startup, queues are disabled and jobs run synchronously.
 - **Cache:** Redis via `cacheService` (graceful degradation when unavailable).
 
 ---
@@ -194,9 +194,8 @@ npm install
 cp .env.example .env
 # Configure DB, JWT, Redis, SMTP, secrets in .env
 mysql -u root -p < src/database/schema.sql
-mysql -u root -p < src/database/seed.sql
-npm run migrate     # node src/database/migrate.js
-npm run seed        # node src/database/seed.js
+npm run migrate     # SQL migrations 001→008, then JS migrations 001→007
+npm run seed        # loads src/database/seed.sql
 npm run dev         # nodemon src/server.js
 npm start           # node src/server.js
 ```

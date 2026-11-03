@@ -110,26 +110,36 @@ async function up() {
 
         // 4. Update departments table to link to business_unit
         console.log('4. Adding business_unit_id to departments table...');
-        await connection.query(`
-            ALTER TABLE departments 
-            ADD COLUMN business_unit_id BIGINT NULL AFTER department_code,
-            ADD COLUMN company_id BIGINT NULL AFTER business_unit_id,
-            ADD INDEX idx_business_unit_id (business_unit_id),
-            ADD INDEX idx_company_id (company_id),
-            ADD FOREIGN KEY (business_unit_id) REFERENCES business_units(id) ON DELETE SET NULL,
-            ADD FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
-        `);
-        console.log('   ✓ departments table updated with business_unit_id and company_id');
+        try {
+            await connection.query(`
+                ALTER TABLE departments 
+                ADD COLUMN business_unit_id BIGINT NULL AFTER department_code,
+                ADD COLUMN company_id BIGINT NULL AFTER business_unit_id,
+                ADD INDEX idx_business_unit_id (business_unit_id),
+                ADD INDEX idx_company_id (company_id),
+                ADD FOREIGN KEY (business_unit_id) REFERENCES business_units(id) ON DELETE SET NULL,
+                ADD FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+            `);
+            console.log('   ✓ departments table updated with business_unit_id and company_id');
+        } catch (error) {
+            if (!['ER_DUP_FIELDNAME', 'ER_DUP_KEYNAME', 'ER_FK_DUP_NAME'].includes(error.code)) throw error;
+            console.log('   ⚠️  departments already linked, skipping ALTER');
+        }
 
         // 5. Update designations_master to link to grade
         console.log('5. Adding grade_id to designations_master table...');
-        await connection.query(`
-            ALTER TABLE designations_master 
-            ADD COLUMN grade_id BIGINT NULL AFTER grade_level,
-            ADD INDEX idx_grade_id (grade_id),
-            ADD FOREIGN KEY (grade_id) REFERENCES grades_master(id) ON DELETE SET NULL
-        `);
-        console.log('   ✓ designations_master table updated with grade_id');
+        try {
+            await connection.query(`
+                ALTER TABLE designations_master 
+                ADD COLUMN grade_id BIGINT NULL AFTER grade_level,
+                ADD INDEX idx_grade_id (grade_id),
+                ADD FOREIGN KEY (grade_id) REFERENCES grades_master(id) ON DELETE SET NULL
+            `);
+            console.log('   ✓ designations_master table updated with grade_id');
+        } catch (error) {
+            if (!['ER_DUP_FIELDNAME', 'ER_DUP_KEYNAME', 'ER_FK_DUP_NAME'].includes(error.code)) throw error;
+            console.log('   ⚠️  designations_master already linked, skipping ALTER');
+        }
 
         // 6. Insert default company
         console.log('6. Inserting default company...');
@@ -263,15 +273,19 @@ async function down() {
 const command = process.argv[2] || 'up';
 
 if (command === 'up') {
-    up().catch(err => {
-        console.error('Migration failed:', err);
-        process.exit(1);
-    });
+    up()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error('Migration failed:', err);
+            process.exit(1);
+        });
 } else if (command === 'down') {
-    down().catch(err => {
-        console.error('Rollback failed:', err);
-        process.exit(1);
-    });
+    down()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error('Rollback failed:', err);
+            process.exit(1);
+        });
 } else {
     console.log('Usage: node migrations/003_master_data.js [up|down]');
     process.exit(1);

@@ -1,6 +1,30 @@
 const { pool } = require('../config/database');
 const config = require('../config');
 
+function parseAllowedTransitions(value) {
+    if (Array.isArray(value)) {
+        return value.map((item) => String(item));
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed.map((item) => String(item));
+                }
+            } catch {
+                // Fall through to CSV handling below.
+            }
+        }
+
+        return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+
+    return [];
+}
+
 class EmployeeModel {
     static async generateEmployeeCode() {
         const query = `
@@ -521,9 +545,11 @@ class EmployeeModel {
             );
 
             if (stateCheck.length > 0 && stateCheck[0].allowed_transitions) {
-                const allowedTransitions = JSON.parse(stateCheck[0].allowed_transitions);
-                if (!allowedTransitions.includes(toState)) {
-                    throw new Error(`Invalid state transition from ${currentState} to ${toState}`);
+                const allowedTransitions = parseAllowedTransitions(stateCheck[0].allowed_transitions);
+                if (allowedTransitions.length > 0 && !allowedTransitions.includes(toState)) {
+                    const error = new Error(`Invalid state transition from ${currentState} to ${toState}`);
+                    error.statusCode = 400;
+                    throw error;
                 }
             }
 

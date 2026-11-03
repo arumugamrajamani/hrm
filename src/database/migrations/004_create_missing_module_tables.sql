@@ -453,7 +453,7 @@ CREATE TABLE IF NOT EXISTS payslip_components (
 -- 19. Tax Configurations Table
 CREATE TABLE IF NOT EXISTS tax_configurations (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    tax_year INT NOT NULL COMMENT 'Financial year e.g. 2024',
+    tax_year VARCHAR(9) NOT NULL COMMENT 'Financial year e.g. 2024 or 2024-2025',
     slab_min DECIMAL(12,2) NOT NULL,
     slab_max DECIMAL(12,2) NULL COMMENT 'NULL = no upper limit',
     tax_rate DECIMAL(5,2) NOT NULL COMMENT 'Tax rate percentage',
@@ -470,9 +470,10 @@ CREATE TABLE IF NOT EXISTS tax_configurations (
 CREATE TABLE IF NOT EXISTS pf_configurations (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     effective_from DATE NOT NULL,
-    employee_percentage DECIMAL(5,2) DEFAULT 12.00,
-    employer_percentage DECIMAL(5,2) DEFAULT 12.00,
-    ceiling_amount DECIMAL(12,2) DEFAULT 15000.00 COMMENT 'Wage ceiling for PF',
+    employee_contribution_rate DECIMAL(5,2) DEFAULT 12.00,
+    employer_contribution_rate DECIMAL(5,2) DEFAULT 12.00,
+    employer_pension_rate DECIMAL(5,2) DEFAULT 8.33,
+    wage_ceiling DECIMAL(12,2) DEFAULT 15000.00 COMMENT 'Wage ceiling for PF',
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -484,8 +485,8 @@ CREATE TABLE IF NOT EXISTS pf_configurations (
 CREATE TABLE IF NOT EXISTS esi_configurations (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     effective_from DATE NOT NULL,
-    employee_percentage DECIMAL(5,2) DEFAULT 0.75,
-    employer_percentage DECIMAL(5,2) DEFAULT 3.25,
+    employee_contribution_rate DECIMAL(5,2) DEFAULT 0.75,
+    employer_contribution_rate DECIMAL(5,2) DEFAULT 3.25,
     wage_ceiling DECIMAL(12,2) DEFAULT 21000.00 COMMENT 'Wage ceiling for ESI',
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -642,15 +643,15 @@ CREATE TABLE IF NOT EXISTS probation_tracking (
 -- ================================================
 
 -- Default Shifts
-INSERT INTO shifts (shift_name, start_time, end_time, break_duration, weekoff_days, grace_period_minutes, created_by) VALUES
-('General', '09:00:00', '18:00:00', 60, 'Saturday,Sunday', 15, 1),
-('Morning', '07:00:00', '16:00:00', 45, 'Sunday', 10, 1),
-('Evening', '14:00:00', '23:00:00', 45, 'Sunday', 10, 1),
-('Night', '22:00:00', '07:00:00', 30, 'Sunday', 0, 1),
-('Flexible', '08:00:00', '17:00:00', 60, 'Saturday,Sunday', 30, 1);
+INSERT IGNORE INTO shifts (shift_code, shift_name, start_time, end_time, break_duration, weekoff_days, grace_period_minutes, created_by) VALUES
+('GEN', 'General', '09:00:00', '18:00:00', 60, 'Saturday,Sunday', 15, 1),
+('MOR', 'Morning', '07:00:00', '16:00:00', 45, 'Sunday', 10, 1),
+('EVE', 'Evening', '14:00:00', '23:00:00', 45, 'Sunday', 10, 1),
+('NGT', 'Night', '22:00:00', '07:00:00', 30, 'Sunday', 0, 1),
+('FLX', 'Flexible', '08:00:00', '17:00:00', 60, 'Saturday,Sunday', 30, 1);
 
 -- Default Leave Types
-INSERT INTO leave_types (leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, created_by) VALUES
+INSERT IGNORE INTO leave_types (leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, created_by) VALUES
 ('CL', 'Casual Leave', 'Short-term personal leave', 12, FALSE, FALSE, TRUE, 1, 1),
 ('SL', 'Sick Leave', 'Medical and health-related leave', 12, TRUE, FALSE, TRUE, 1, 1),
 ('EL', 'Earned Leave', 'Accumulated leave based on service', 15, TRUE, TRUE, TRUE, 5, 1),
@@ -660,7 +661,7 @@ INSERT INTO leave_types (leave_code, leave_name, description, max_days_per_year,
 ('COMP', 'Compensatory Off', 'Leave for working on holidays/weekends', 0, FALSE, FALSE, TRUE, 1, 1);
 
 -- Default Tax Configuration (FY 2024-25 - New Regime)
-INSERT INTO tax_configurations (tax_year, slab_min, slab_max, tax_rate, cess_rate) VALUES
+INSERT IGNORE INTO tax_configurations (tax_year, slab_min, slab_max, tax_rate, cess_rate) VALUES
 (2024, 0, 300000, 0.00, 4.00),
 (2024, 300000, 700000, 5.00, 4.00),
 (2024, 700000, 1000000, 10.00, 4.00),
@@ -669,15 +670,15 @@ INSERT INTO tax_configurations (tax_year, slab_min, slab_max, tax_rate, cess_rat
 (2024, 1500000, NULL, 30.00, 4.00);
 
 -- Default PF Configuration
-INSERT INTO pf_configurations (effective_from, employee_percentage, employer_percentage, ceiling_amount) VALUES
-('2024-04-01', 12.00, 12.00, 15000.00);
+INSERT IGNORE INTO pf_configurations (effective_from, employee_contribution_rate, employer_contribution_rate, employer_pension_rate, wage_ceiling) VALUES
+('2024-04-01', 12.00, 12.00, 8.33, 15000.00);
 
 -- Default ESI Configuration
-INSERT INTO esi_configurations (effective_from, employee_percentage, employer_percentage, wage_ceiling) VALUES
+INSERT IGNORE INTO esi_configurations (effective_from, employee_contribution_rate, employer_contribution_rate, wage_ceiling) VALUES
 ('2024-04-01', 0.75, 3.25, 21000.00);
 
 -- Default Salary Components
-INSERT INTO salary_components (component_code, component_name, component_type, calculation_type, is_taxable, is_statutory, display_order, created_by) VALUES
+INSERT IGNORE INTO salary_components (component_code, component_name, component_type, calculation_type, is_taxable, is_statutory, display_order, created_by) VALUES
 ('BASIC', 'Basic Salary', 'earning', 'fixed', TRUE, FALSE, 1, 1),
 ('HRA', 'House Rent Allowance', 'earning', 'percentage', TRUE, FALSE, 2, 1),
 ('DA', 'Dearness Allowance', 'earning', 'percentage', TRUE, FALSE, 3, 1),
@@ -693,13 +694,13 @@ INSERT INTO salary_components (component_code, component_name, component_type, c
 ('TDS', 'Tax Deducted at Source', 'deduction', 'percentage', FALSE, TRUE, 5, 1);
 
 -- Default Onboarding Checklist Template
-INSERT INTO onboarding_checklist_templates (template_name, description, applicable_for, is_active, created_by) VALUES
+INSERT IGNORE INTO onboarding_checklist_templates (template_name, description, applicable_for, is_active, created_by) VALUES
 ('Standard Onboarding', 'Standard onboarding checklist for all new employees', 'all', TRUE, 1),
 ('Executive Onboarding', 'Onboarding checklist for senior executives', 'all', TRUE, 1),
 ('Contract Onboarding', 'Onboarding checklist for contract employees', 'all', TRUE, 1);
 
 -- Default Checklist Items for Standard Onboarding
-INSERT INTO checklist_items (template_id, item_name, description, category, is_mandatory, sort_order, estimated_days, created_by) VALUES
+INSERT IGNORE INTO checklist_items (template_id, item_name, description, category, is_mandatory, sort_order, estimated_days, created_by) VALUES
 (1, 'Collect ID Proofs', 'Collect Aadhaar, PAN, Passport copies', 'document', TRUE, 1, 1, 1),
 (1, 'Collect Educational Certificates', 'Collect degree certificates and mark sheets', 'document', TRUE, 2, 1, 1),
 (1, 'Collect Bank Details', 'Collect cancelled cheque or bank passbook', 'document', TRUE, 3, 1, 1),

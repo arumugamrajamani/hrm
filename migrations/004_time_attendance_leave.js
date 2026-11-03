@@ -214,7 +214,7 @@ async function up() {
         // 8. Insert default leave types
         console.log('8. Inserting default leave types...');
         await connection.query(`
-            INSERT INTO leave_types 
+            INSERT IGNORE INTO leave_types 
             (leave_code, leave_name, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice) VALUES
             ('CL', 'Casual Leave', 12, FALSE, FALSE, TRUE, 0),
             ('SL', 'Sick Leave', 10, FALSE, FALSE, TRUE, 0),
@@ -284,15 +284,19 @@ async function down() {
 const command = process.argv[2] || 'up';
 
 if (command === 'up') {
-    up().catch(err => {
-        console.error('Migration failed:', err);
-        process.exit(1);
-    });
+    up()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error('Migration failed:', err);
+            process.exit(1);
+        });
 } else if (command === 'down') {
-    down().catch(err => {
-        console.error('Rollback failed:', err);
-        process.exit(1);
-    });
+    down()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error('Rollback failed:', err);
+            process.exit(1);
+        });
 } else {
     console.log('Usage: node migrations/004_time_attendance_leave.js [up|down]');
     process.exit(1);

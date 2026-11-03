@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS feature_flags (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insert default feature flags
-INSERT INTO feature_flags (name, description, is_enabled, rollout_percentage) VALUES
+INSERT IGNORE INTO feature_flags (name, description, is_enabled, rollout_percentage) VALUES
 ('two_factor_auth', 'Enable Two-Factor Authentication', FALSE, 0),
 ('audit_export', 'Enable Audit Log Export', TRUE, 100),
 ('bulk_operations', 'Enable Bulk Import/Export', TRUE, 100),

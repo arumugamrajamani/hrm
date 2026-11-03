@@ -9,6 +9,10 @@ CREATE DATABASE IF NOT EXISTS hrm_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 
 USE hrm_db;
 
+-- Allow forward references between tables while the schema is created; the
+-- constraints are validated once all tables exist and checks are re-enabled.
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- ===============================================
 -- DROP EXISTING TABLES (in reverse dependency order)
 -- ===============================================
@@ -62,6 +66,8 @@ DROP TABLE IF EXISTS feature_flags;
 DROP TABLE IF EXISTS ip_blocklist;
 DROP TABLE IF EXISTS tenants;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS role_permissions;
+DROP TABLE IF EXISTS permissions;
 DROP TABLE IF EXISTS roles;
 DROP TABLE IF EXISTS designations_master;
 DROP TABLE IF EXISTS locations_master;
@@ -83,6 +89,32 @@ CREATE TABLE roles (
     permissions JSON,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ===============================================
+-- 1a. PERMISSIONS TABLE
+-- ===============================================
+CREATE TABLE IF NOT EXISTS permissions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    permission_name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ===============================================
+-- 1b. ROLE PERMISSIONS TABLE
+-- ===============================================
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_id INT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_role_permission (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_role_permission_role (role_id),
+    INDEX idx_role_permission_permission (permission_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ===============================================
@@ -121,7 +153,7 @@ CREATE TABLE employees (
 -- 3. USERS TABLE (Authentication only)
 -- ===============================================
 CREATE TABLE users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
     employee_id BIGINT NULL UNIQUE,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
@@ -142,11 +174,67 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ===============================================
+-- 3a. EMPLOYEE CONTACT DETAILS TABLE
+-- ===============================================
+CREATE TABLE IF NOT EXISTS employee_contact_details (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    email VARCHAR(100) NULL,
+    mobile VARCHAR(20) NULL,
+    alternate_mobile VARCHAR(20) NULL,
+    personal_email VARCHAR(100) NULL,
+    linkedin_url VARCHAR(255) NULL,
+    emergency_contact_name VARCHAR(100) NULL,
+    emergency_contact_relation VARCHAR(50) NULL,
+    emergency_contact_mobile VARCHAR(20) NULL,
+    created_by BIGINT NULL,
+    updated_by BIGINT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_employee_contact_employee (employee_id),
+    UNIQUE KEY uk_employee_contact_email (email),
+    UNIQUE KEY uk_employee_contact_mobile (mobile),
+    INDEX idx_employee_contact_email (email),
+    INDEX idx_employee_contact_mobile (mobile),
+    INDEX idx_employee_contact_created_by (created_by),
+    INDEX idx_employee_contact_updated_by (updated_by),
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ===============================================
+-- 3b. EMPLOYEE EMERGENCY CONTACTS TABLE
+-- ===============================================
+CREATE TABLE IF NOT EXISTS employee_emergency_contacts (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    relation VARCHAR(50) NULL,
+    mobile VARCHAR(20) NOT NULL,
+    alternate_mobile VARCHAR(20) NULL,
+    email VARCHAR(100) NULL,
+    address TEXT NULL,
+    priority_order INT DEFAULT 1,
+    created_by BIGINT NULL,
+    updated_by BIGINT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_employee_emergency_employee (employee_id),
+    INDEX idx_employee_emergency_priority (priority_order),
+    INDEX idx_employee_emergency_created_by (created_by),
+    INDEX idx_employee_emergency_updated_by (updated_by),
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ===============================================
 -- 4. LOGIN ATTEMPTS TABLE
 -- ===============================================
 CREATE TABLE login_attempts (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NULL,
+    user_id BIGINT NULL,
     attempts INT DEFAULT 0,
     blocked_until DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -161,7 +249,7 @@ CREATE TABLE login_attempts (
 -- ===============================================
 CREATE TABLE password_history (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id BIGINT NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -173,7 +261,7 @@ CREATE TABLE password_history (
 -- ===============================================
 CREATE TABLE password_reset_tokens (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id BIGINT NOT NULL,
     otp VARCHAR(10) NOT NULL,
     expires_at DATETIME NOT NULL,
     is_used BOOLEAN DEFAULT FALSE,
@@ -189,7 +277,7 @@ CREATE TABLE password_reset_tokens (
 -- ===============================================
 CREATE TABLE refresh_tokens (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id BIGINT NOT NULL,
     token VARCHAR(500) NOT NULL UNIQUE,
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -204,7 +292,7 @@ CREATE TABLE refresh_tokens (
 -- ===============================================
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NULL,
+    user_id BIGINT NULL,
     action VARCHAR(50) NOT NULL,
     entity_type VARCHAR(50) NOT NULL,
     entity_id INT NULL,
@@ -267,14 +355,17 @@ CREATE TABLE departments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     business_unit_id BIGINT NULL,
+    company_id BIGINT NULL,
     FOREIGN KEY (parent_department_id) REFERENCES departments(id) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (business_unit_id) REFERENCES business_units(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE,
     INDEX idx_department_code (department_code),
     INDEX idx_parent_department (parent_department_id),
     INDEX idx_status (status),
-    INDEX idx_dept_bu (business_unit_id)
+    INDEX idx_dept_bu (business_unit_id),
+    INDEX idx_company_id (company_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 9c. DESIGNATIONS MASTER
@@ -291,14 +382,17 @@ CREATE TABLE designations_master (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     business_unit_id BIGINT NULL,
+    grade_id BIGINT NULL,
     FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (business_unit_id) REFERENCES business_units(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (grade_id) REFERENCES grades_master(id) ON DELETE SET NULL ON UPDATE CASCADE,
     INDEX idx_designation_code (designation_code),
     INDEX idx_department_id (department_id),
     INDEX idx_status (status),
-    INDEX idx_desig_bu (business_unit_id)
+    INDEX idx_desig_bu (business_unit_id),
+    INDEX idx_grade_id (grade_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 9d. COURSE MASTER
@@ -564,9 +658,11 @@ CREATE TABLE education_course_map (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     education_id BIGINT NOT NULL,
     course_id BIGINT NOT NULL,
+    created_by BIGINT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (education_id) REFERENCES education_master(id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (course_id) REFERENCES course_master(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     UNIQUE KEY uk_edu_course (education_id, course_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1041,8 +1137,8 @@ CREATE TABLE IF NOT EXISTS payslip_components (
 -- 26. TAX CONFIGURATIONS TABLE
 -- ===============================================
 CREATE TABLE IF NOT EXISTS tax_configurations (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    tax_year INT NOT NULL COMMENT 'Financial year e.g. 2024',
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tax_year VARCHAR(9) NOT NULL COMMENT 'Financial year e.g. 2024 or 2024-2025',
     slab_min DECIMAL(12,2) NOT NULL,
     slab_max DECIMAL(12,2) NULL COMMENT 'NULL = no upper limit',
     tax_rate DECIMAL(5,2) NOT NULL COMMENT 'Tax rate percentage',
@@ -1058,11 +1154,12 @@ CREATE TABLE IF NOT EXISTS tax_configurations (
 -- 27. PF CONFIGURATIONS TABLE
 -- ===============================================
 CREATE TABLE IF NOT EXISTS pf_configurations (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     effective_from DATE NOT NULL,
-    employee_percentage DECIMAL(5,2) DEFAULT 12.00,
-    employer_percentage DECIMAL(5,2) DEFAULT 12.00,
-    ceiling_amount DECIMAL(12,2) DEFAULT 15000.00 COMMENT 'Wage ceiling for PF',
+    employee_contribution_rate DECIMAL(5,2) DEFAULT 12.00,
+    employer_contribution_rate DECIMAL(5,2) DEFAULT 12.00,
+    employer_pension_rate DECIMAL(5,2) DEFAULT 8.33,
+    wage_ceiling DECIMAL(10,2) DEFAULT 15000.00 COMMENT 'Wage ceiling for PF',
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1074,11 +1171,11 @@ CREATE TABLE IF NOT EXISTS pf_configurations (
 -- 28. ESI CONFIGURATIONS TABLE
 -- ===============================================
 CREATE TABLE IF NOT EXISTS esi_configurations (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     effective_from DATE NOT NULL,
-    employee_percentage DECIMAL(5,2) DEFAULT 0.75,
-    employer_percentage DECIMAL(5,2) DEFAULT 3.25,
-    wage_ceiling DECIMAL(12,2) DEFAULT 21000.00 COMMENT 'Wage ceiling for ESI',
+    employee_contribution_rate DECIMAL(5,2) DEFAULT 0.75,
+    employer_contribution_rate DECIMAL(5,2) DEFAULT 3.25,
+    wage_ceiling DECIMAL(10,2) DEFAULT 21000.00 COMMENT 'Wage ceiling for ESI',
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1504,7 +1601,7 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     retry_count INT DEFAULT 3,
     timeout_seconds INT DEFAULT 30,
     headers JSON NULL,
-    created_by INT NULL,
+    created_by BIGINT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -1522,7 +1619,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
     payload_template JSON,
     headers JSON,
     is_active BOOLEAN DEFAULT TRUE,
-    created_by INT NULL,
+    created_by BIGINT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (endpoint_id) REFERENCES webhook_endpoints(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -1575,7 +1672,7 @@ CREATE TABLE IF NOT EXISTS ip_blocklist (
     id INT PRIMARY KEY AUTO_INCREMENT,
     ip_address VARCHAR(45) NOT NULL UNIQUE,
     reason VARCHAR(255) NULL,
-    blocked_by INT NULL,
+    blocked_by BIGINT NULL,
     expires_at DATETIME NULL,
     is_permanent BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1590,7 +1687,7 @@ CREATE TABLE IF NOT EXISTS ip_blocklist (
 -- ===============================================
 CREATE TABLE IF NOT EXISTS user_totp_secrets (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL UNIQUE,
+    user_id BIGINT NOT NULL UNIQUE,
     secret VARCHAR(255) NOT NULL,
     is_enabled BOOLEAN DEFAULT TRUE,
     backup_codes JSON NULL,
@@ -1606,7 +1703,7 @@ CREATE TABLE IF NOT EXISTS user_totp_secrets (
 -- ===============================================
 CREATE TABLE IF NOT EXISTS api_keys (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id BIGINT NOT NULL,
     key_name VARCHAR(100) NOT NULL,
     key_hash VARCHAR(255) NOT NULL,
     key_prefix VARCHAR(20) NOT NULL,
@@ -1656,12 +1753,12 @@ INSERT INTO users (username, email, password, mobile, role_id, account_status) V
 ('admin', 'admin@hrm.com', '$2b$12$LQvRQx.tGRlqwrPw6JYOQeZQxNK5I6Uw.GQYMmL3uhQx9QxQxQx', '+1234567890', 1, 'active');
 
 -- Default Shifts
-INSERT INTO shifts (shift_name, start_time, end_time, break_duration, weekoff_days, grace_period_minutes, created_by) VALUES
-('General', '09:00:00', '18:00:00', 60, 'Saturday,Sunday', 15, 1),
-('Morning', '07:00:00', '16:00:00', 45, 'Sunday', 10, 1),
-('Evening', '14:00:00', '23:00:00', 45, 'Sunday', 10, 1),
-('Night', '22:00:00', '07:00:00', 30, 'Sunday', 0, 1),
-('Flexible', '08:00:00', '17:00:00', 60, 'Saturday,Sunday', 30, 1);
+INSERT INTO shifts (shift_code, shift_name, start_time, end_time, break_duration, weekoff_days, grace_period_minutes, created_by) VALUES
+('GEN', 'General', '09:00:00', '18:00:00', 60, 'Saturday,Sunday', 15, 1),
+('MOR', 'Morning', '07:00:00', '16:00:00', 45, 'Sunday', 10, 1),
+('EVE', 'Evening', '14:00:00', '23:00:00', 45, 'Sunday', 10, 1),
+('NGT', 'Night', '22:00:00', '07:00:00', 30, 'Sunday', 0, 1),
+('FLX', 'Flexible', '08:00:00', '17:00:00', 60, 'Saturday,Sunday', 30, 1);
 
 -- Default Leave Types
 INSERT INTO leave_types (leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, created_by) VALUES
@@ -1683,11 +1780,11 @@ INSERT INTO tax_configurations (tax_year, slab_min, slab_max, tax_rate, cess_rat
 (2024, 1500000, NULL, 30.00, 4.00);
 
 -- Default PF Configuration
-INSERT INTO pf_configurations (effective_from, employee_percentage, employer_percentage, ceiling_amount) VALUES
-('2024-04-01', 12.00, 12.00, 15000.00);
+INSERT INTO pf_configurations (effective_from, employee_contribution_rate, employer_contribution_rate, employer_pension_rate, wage_ceiling) VALUES
+('2024-04-01', 12.00, 12.00, 8.33, 15000.00);
 
 -- Default ESI Configuration
-INSERT INTO esi_configurations (effective_from, employee_percentage, employer_percentage, wage_ceiling) VALUES
+INSERT INTO esi_configurations (effective_from, employee_contribution_rate, employer_contribution_rate, wage_ceiling) VALUES
 ('2024-04-01', 0.75, 3.25, 21000.00);
 
 -- Default Salary Components
@@ -1799,3 +1896,4 @@ ORDER BY eo.joining_date DESC;
 -- ===============================================
 -- COMPLETE SCHEMA CREATION FINISHED
 -- ===============================================
+SET FOREIGN_KEY_CHECKS = 1;

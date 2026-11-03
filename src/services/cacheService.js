@@ -7,6 +7,7 @@ class CacheService {
         this.client = null;
         this.isConnected = false;
         this.connectionAttempted = false;
+        this.connectionLogged = false;
     }
 
     async connect() {
@@ -36,7 +37,9 @@ class CacheService {
 
             this.client.on('error', (err) => {
                 if (!this.connectionLogged) {
-                    logger.warn('Redis unavailable - running without cache', { error: err.message });
+                    logger.warn('Redis unavailable - running without cache', {
+                        error: err?.code || err?.message || String(err)
+                    });
                     this.connectionLogged = true;
                 }
                 this.isConnected = false;
@@ -116,10 +119,20 @@ class CacheService {
     }
 
     async disconnect() {
-        if (this.client) {
-            await this.client.quit();
+        if (!this.client) {
             this.isConnected = false;
-            logger.info('Redis disconnected');
+            return;
+        }
+
+        try {
+            if (this.client.isOpen) {
+                await this.client.quit();
+                logger.info('Redis disconnected');
+            }
+        } catch (error) {
+            logger.debug('Redis client already closed', { error: error.message });
+        } finally {
+            this.isConnected = false;
         }
     }
 }

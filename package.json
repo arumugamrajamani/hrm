@@ -16,7 +16,7 @@
     "db:setup": "mysql -u root -p < src/database/schema.sql",
     "db:seed": "mysql -u root -p < src/database/seed.sql",
     "migrate": "node src/database/migrate.js",
-    "seed": "node src/database/seed.js"
+    "seed": "mysql -u root -p < src/database/seed.sql"
   },
   "keywords": [
     "hrm",

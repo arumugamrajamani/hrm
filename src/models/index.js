@@ -88,7 +88,7 @@ class UserModel {
     static async findByEmail(email) {
         const query = `
             SELECT 
-                u.*, r.name as role_name,
+                u.*, r.name as role_name, u.account_status as status,
                 e.employee_code, e.first_name, e.last_name,
                 CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) as employee_name
             FROM users u
@@ -103,7 +103,7 @@ class UserModel {
     static async findByUsername(username) {
         const query = `
             SELECT 
-                u.*, r.name as role_name,
+                u.*, r.name as role_name, u.account_status as status,
                 e.employee_code, e.first_name, e.last_name,
                 CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) as employee_name
             FROM users u
@@ -128,14 +128,19 @@ class UserModel {
     }
 
     static async update(id, userData) {
+        const data = { ...userData };
+        if (data.status !== undefined && data.account_status === undefined) {
+            data.account_status = data.status;
+        }
+
         const allowedFields = ['username', 'email', 'mobile', 'role_id', 'account_status', 'updated_by'];
         const updates = [];
         const params = [];
 
         for (const field of allowedFields) {
-            if (userData[field] !== undefined) {
+            if (data[field] !== undefined) {
                 updates.push(`${field} = ?`);
-                params.push(userData[field]);
+                params.push(data[field]);
             }
         }
 

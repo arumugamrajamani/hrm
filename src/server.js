@@ -24,12 +24,20 @@ const startServer = async () => {
         await RefreshTokenModel.deleteExpired();
         logger.info('Cleaned up expired refresh tokens');
 
-        const redisConnected = await cacheService.connect();
+        const [redisConnected, queuesReady] = await Promise.all([
+            cacheService.connect(),
+            queueService.initialize()
+        ]);
+
         if (redisConnected) {
             logger.info('Redis cache connected successfully');
             await initRedisStore();
         } else {
             logger.warn('Running without Redis cache - performance may be affected');
+        }
+
+        if (queuesReady) {
+            logger.info('Job queues connected successfully');
         }
 
         const server = app.listen(config.PORT, () => {
@@ -53,18 +61,37 @@ const startServer = async () => {
             }, 30000);
 
             try {
-                server.close(() => {
-                    logger.info('HTTP server closed');
-                });
+                try {
+                    await new Promise((resolve) => {
+                        server.close(() => {
+                            logger.info('HTTP server closed');
+                            resolve();
+                        });
+                    });
+                } catch (error) {
+                    logger.warn('Error closing HTTP server', { error: error.message });
+                }
 
                 logger.info('Closing queue connections...');
-                await queueService.closeAll();
+                try {
+                    await queueService.closeAll();
+                } catch (error) {
+                    logger.warn('Error closing queue connections', { error: error.message });
+                }
 
                 logger.info('Closing cache connections...');
-                await cacheService.disconnect();
+                try {
+                    await cacheService.disconnect();
+                } catch (error) {
+                    logger.warn('Error closing cache connections', { error: error.message });
+                }
 
                 logger.info('Closing database connections...');
-                await closePool();
+                try {
+                    await closePool();
+                } catch (error) {
+                    logger.warn('Error closing database connections', { error: error.message });
+                }
 
                 clearTimeout(shutdownTimeout);
                 logger.info('Graceful shutdown completed');
@@ -84,11 +111,11 @@ const startServer = async () => {
         });
 
         process.on('beforeExit', (code) => {
-            logger.info('Node.js event loop empty. Exit code:', code);
+            logger.info(`Node.js event loop empty. Exit code: ${code}`);
         });
 
         process.on('exit', (code) => {
-            logger.info('Process exiting with code:', code);
+            logger.info(`Process exiting with code: ${code}`);
         });
 
         process.on('unhandledRejection', (reason, promise) => {

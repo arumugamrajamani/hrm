@@ -5,6 +5,7 @@ const employeeController = require('../controllers/employeeController');
 const { authMiddleware } = require('../middlewares/auth');
 const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
 const { auditLog } = require('../middlewares/auditLog');
+const { resolveEmployeeId } = require('../middlewares/resolveEmployee');
 const { 
     createUserValidation,
     createUserWithEmailValidation,
@@ -296,7 +297,7 @@ router.get('/roles', userController.getAllRoles);
  *       403:
  *         description: Forbidden
  */
-router.post('/', checkPermission('users.write'), userController.createUser);
+router.post('/', checkPermission('users.write'), createUserValidation, userController.createUser);
 
 /**
  * @swagger
@@ -386,7 +387,7 @@ router.post('/with-email', checkPermission('users.write'), createUserWithEmailVa
  *       401:
  *         description: Unauthorized
  */
-router.put('/:id', checkPermission('users.update'), userController.updateUser);
+router.put('/:id', checkPermission('users.update'), updateUserValidation, userController.updateUser);
 
 /**
  * @swagger
@@ -574,6 +575,7 @@ router.get('/employee', auditLog('READ', 'employees'), employeeController.getAll
  *                 type: integer
  *               role_id:
  *                 type: integer
+ *                 description: Optional. Defaults to Employee (role 5) when creating a user account with email.
  *               reporting_manager_id:
  *                 type: integer
  *               employment_type:
@@ -634,14 +636,14 @@ router.post('/employee', auditLog('CREATE', 'employees'), employeeController.cre
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee', auditLog('READ', 'employees'), employeeController.getEmployeeById);
+router.get('/:id/employee', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getEmployeeById);
 
 /**
  * @swagger
  * /api/v1/users/{id}/employee:
  *   put:
  *     summary: Update employee
- *     description: Update employee details.
+ *     description: Update employee details for the employee linked to the given user.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -651,7 +653,7 @@ router.get('/:id/employee', auditLog('READ', 'employees'), employeeController.ge
  *         required: true
  *         schema:
  *           type: integer
- *         description: Employee ID
+ *         description: User ID
  *     requestBody:
  *       required: true
  *       content:
@@ -680,7 +682,7 @@ router.get('/:id/employee', auditLog('READ', 'employees'), employeeController.ge
  *       401:
  *         description: Unauthorized
  */
-router.put('/:id/employee', auditLog('UPDATE', 'employees'), employeeController.updateEmployee);
+router.put('/:id/employee', resolveEmployeeId, auditLog('UPDATE', 'employees'), employeeController.updateEmployee);
 
 /**
  * @swagger
@@ -706,7 +708,7 @@ router.put('/:id/employee', auditLog('UPDATE', 'employees'), employeeController.
  *       401:
  *         description: Unauthorized
  */
-router.patch('/:id/employee/restore', auditLog('UPDATE', 'employees'), employeeController.restoreEmployee);
+router.patch('/:id/employee/restore', resolveEmployeeId, auditLog('UPDATE', 'employees'), employeeController.restoreEmployee);
 
 /**
  * @swagger
@@ -753,7 +755,7 @@ router.patch('/:id/employee/restore', auditLog('UPDATE', 'employees'), employeeC
  *       401:
  *         description: Unauthorized
  */
-router.patch('/:id/employee/lifecycle-state', auditLog('UPDATE', 'employees'), employeeController.changeLifecycleState);
+router.patch('/:id/employee/lifecycle-state', resolveEmployeeId, auditLog('UPDATE', 'employees'), employeeController.changeLifecycleState);
 
 /**
  * @swagger
@@ -779,7 +781,7 @@ router.patch('/:id/employee/lifecycle-state', auditLog('UPDATE', 'employees'), e
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/lifecycle-history', auditLog('READ', 'employees'), employeeController.getLifecycleHistory);
+router.get('/:id/employee/lifecycle-history', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getLifecycleHistory);
 
 /**
  * @swagger
@@ -836,7 +838,7 @@ router.get('/:id/employee/lifecycle-history', auditLog('READ', 'employees'), emp
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/employee/job-changes', auditLog('CREATE', 'employee_job_changes'), employeeController.addJobChange);
+router.post('/:id/employee/job-changes', resolveEmployeeId, auditLog('CREATE', 'employee_job_changes'), employeeController.addJobChange);
 
 /**
  * @swagger
@@ -862,7 +864,7 @@ router.post('/:id/employee/job-changes', auditLog('CREATE', 'employee_job_change
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/job-changes', auditLog('READ', 'employees'), employeeController.getJobChanges);
+router.get('/:id/employee/job-changes', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getJobChanges);
 
 /**
  * @swagger
@@ -888,7 +890,7 @@ router.get('/:id/employee/job-changes', auditLog('READ', 'employees'), employeeC
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/profile', auditLog('READ', 'employees'), employeeController.getEmployeeFullProfile);
+router.get('/:id/employee/profile', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getEmployeeFullProfile);
 
 /**
  * @swagger
@@ -914,7 +916,7 @@ router.get('/:id/employee/profile', auditLog('READ', 'employees'), employeeContr
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/job-details', auditLog('READ', 'employees'), employeeController.getJobDetails);
+router.get('/:id/employee/job-details', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getJobDetails);
 
 /**
  * @swagger
@@ -940,7 +942,7 @@ router.get('/:id/employee/job-details', auditLog('READ', 'employees'), employeeC
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/job-details/current', auditLog('READ', 'employees'), employeeController.getCurrentJobDetails);
+router.get('/:id/employee/job-details/current', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getCurrentJobDetails);
 
 /**
  * @swagger
@@ -991,7 +993,7 @@ router.get('/:id/employee/job-details/current', auditLog('READ', 'employees'), e
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/employee/job-details', auditLog('CREATE', 'employee_job_details'), employeeController.updateJobDetails);
+router.post('/:id/employee/job-details', resolveEmployeeId, auditLog('CREATE', 'employee_job_details'), employeeController.updateJobDetails);
 
 /**
  * @swagger
@@ -1017,7 +1019,7 @@ router.post('/:id/employee/job-details', auditLog('CREATE', 'employee_job_detail
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/addresses', auditLog('READ', 'employees'), employeeController.getAddresses);
+router.get('/:id/employee/addresses', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getAddresses);
 
 /**
  * @swagger
@@ -1043,7 +1045,7 @@ router.get('/:id/employee/addresses', auditLog('READ', 'employees'), employeeCon
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/addresses/current', auditLog('READ', 'employees'), employeeController.getCurrentAddresses);
+router.get('/:id/employee/addresses/current', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getCurrentAddresses);
 
 /**
  * @swagger
@@ -1091,7 +1093,7 @@ router.get('/:id/employee/addresses/current', auditLog('READ', 'employees'), emp
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/employee/addresses', auditLog('CREATE', 'employee_addresses'), employeeController.addAddress);
+router.post('/:id/employee/addresses', resolveEmployeeId, auditLog('CREATE', 'employee_addresses'), employeeController.addAddress);
 
 /**
  * @swagger
@@ -1117,7 +1119,7 @@ router.post('/:id/employee/addresses', auditLog('CREATE', 'employee_addresses'),
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/bank-details', auditLog('READ', 'employees'), employeeController.getBankDetails);
+router.get('/:id/employee/bank-details', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getBankDetails);
 
 /**
  * @swagger
@@ -1143,7 +1145,7 @@ router.get('/:id/employee/bank-details', auditLog('READ', 'employees'), employee
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/bank-details/current', auditLog('READ', 'employees'), employeeController.getCurrentBankDetails);
+router.get('/:id/employee/bank-details/current', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getCurrentBankDetails);
 
 /**
  * @swagger
@@ -1191,7 +1193,7 @@ router.get('/:id/employee/bank-details/current', auditLog('READ', 'employees'), 
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/employee/bank-details', auditLog('CREATE', 'employee_bank_details'), employeeController.addBankDetails);
+router.post('/:id/employee/bank-details', resolveEmployeeId, auditLog('CREATE', 'employee_bank_details'), employeeController.addBankDetails);
 
 /**
  * @swagger
@@ -1217,7 +1219,7 @@ router.post('/:id/employee/bank-details', auditLog('CREATE', 'employee_bank_deta
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/education', auditLog('READ', 'employees'), employeeController.getEducation);
+router.get('/:id/employee/education', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getEducation);
 
 /**
  * @swagger
@@ -1266,7 +1268,7 @@ router.get('/:id/employee/education', auditLog('READ', 'employees'), employeeCon
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/employee/education', auditLog('CREATE', 'employee_education'), employeeController.addEducation);
+router.post('/:id/employee/education', resolveEmployeeId, auditLog('CREATE', 'employee_education'), employeeController.addEducation);
 
 /**
  * @swagger
@@ -1292,7 +1294,7 @@ router.post('/:id/employee/education', auditLog('CREATE', 'employee_education'),
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/experience', auditLog('READ', 'employees'), employeeController.getExperience);
+router.get('/:id/employee/experience', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getExperience);
 
 /**
  * @swagger
@@ -1339,7 +1341,7 @@ router.get('/:id/employee/experience', auditLog('READ', 'employees'), employeeCo
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/employee/experience', auditLog('CREATE', 'employee_experience'), employeeController.addExperience);
+router.post('/:id/employee/experience', resolveEmployeeId, auditLog('CREATE', 'employee_experience'), employeeController.addExperience);
 
 /**
  * @swagger
@@ -1365,7 +1367,7 @@ router.post('/:id/employee/experience', auditLog('CREATE', 'employee_experience'
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/documents', auditLog('READ', 'employees'), employeeController.getDocuments);
+router.get('/:id/employee/documents', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getDocuments);
 
 /**
  * @swagger
@@ -1408,7 +1410,7 @@ router.get('/:id/employee/documents', auditLog('READ', 'employees'), employeeCon
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/employee/documents', auditLog('CREATE', 'employee_documents'), employeeController.addDocument);
+router.post('/:id/employee/documents', resolveEmployeeId, auditLog('CREATE', 'employee_documents'), employeeController.addDocument);
 
 /**
  * @swagger
@@ -1469,7 +1471,7 @@ router.post('/:id/employee/documents', auditLog('CREATE', 'employee_documents'),
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/emergency-contacts', auditLog('READ', 'employees'), employeeController.getEmergencyContacts);
+router.get('/:id/employee/emergency-contacts', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getEmergencyContacts);
 
 /**
  * @swagger
@@ -1495,7 +1497,7 @@ router.get('/:id/employee/emergency-contacts', auditLog('READ', 'employees'), em
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id/employee/reporting-employees', auditLog('READ', 'employees'), employeeController.getReportingEmployees);
+router.get('/:id/employee/reporting-employees', resolveEmployeeId, auditLog('READ', 'employees'), employeeController.getReportingEmployees);
 
 // NOTE: Keep this catch-all route last so static paths such as /users/employee and
 // /users/roles are matched first.

@@ -5,8 +5,8 @@ const employeeBankModel = require('../models/employeeBankModel');
 const employeeEducationModel = require('../models/employeeEducationModel');
 const employeeExperienceModel = require('../models/employeeExperienceModel');
 const employeeDocumentModel = require('../models/employeeDocumentModel');
-const UserModel = require('../models/index').UserModel;
-const { hashPassword, generateRandomPassword } = require('../utils/passwordUtils');
+const { UserModel, RoleModel } = require('../models/index');
+const { hashPassword, generateRandomPassword, validatePasswordStrength } = require('../utils/passwordUtils');
 const { sendEmail } = require('../config/mail');
 const { getWelcomeEmailTemplate } = require('../utils/emailTemplates');
 const config = require('../config');
@@ -92,26 +92,21 @@ class EmployeeService {
             throw error;
         }
 
+        const shouldCreateUser = Boolean(employeeData.email || employeeData.username || employeeData.role_id);
+
         let username = employeeData.username;
-        if (!username && (employeeData.email || employeeData.role_id)) {
-            username = await generateUsername(first_name, last_name, mobile);
-        }
+        const providedRoleId = Number.isInteger(Number(employeeData.role_id)) ? Number(employeeData.role_id) : null;
+        const userRoleId = providedRoleId || 5;
 
-        const created = await employeeModel.create({
-            ...employeeData,
-            username,
-            created_by: employeeData.created_by || null
-        });
-
-        if (username || employeeData.email) {
-            if (!username) {
-                username = await generateUsername(first_name, last_name, mobile);
-            }
-
+        if (shouldCreateUser) {
             if (!employeeData.email) {
                 const error = new Error('Email is required when creating a user account');
                 error.statusCode = 400;
                 throw error;
+            }
+
+            if (!username) {
+                username = await generateUsername(first_name, last_name, mobile);
             }
 
             if (await UserModel.emailExists(employeeData.email)) {
@@ -126,6 +121,36 @@ class EmployeeService {
                 throw error;
             }
 
+            if (mobile && await UserModel.mobileExists(mobile)) {
+                const error = new Error('Mobile number already exists');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            const role = await RoleModel.findById(userRoleId);
+            if (!role) {
+                const error = new Error('Invalid role');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            if (employeeData.password) {
+                const passwordValidation = validatePasswordStrength(employeeData.password);
+                if (!passwordValidation.isValid) {
+                    const error = new Error(passwordValidation.errors.join(', '));
+                    error.statusCode = 400;
+                    throw error;
+                }
+            }
+        }
+
+        const created = await employeeModel.create({
+            ...employeeData,
+            username,
+            created_by: employeeData.created_by || null
+        });
+
+        if (shouldCreateUser) {
             const generatedPassword = employeeData.password || generateRandomPassword(12);
             const passwordHash = await hashPassword(generatedPassword);
 
@@ -134,7 +159,7 @@ class EmployeeService {
                 email: employeeData.email,
                 mobile: mobile || null,
                 password: passwordHash,
-                role_id: employeeData.role_id || 1,
+                role_id: userRoleId,
                 employee_id: created.id,
                 status: employeeData.account_status || 'active',
                 created_by: employeeData.created_by || null

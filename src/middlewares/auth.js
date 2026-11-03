@@ -13,44 +13,46 @@ const authMiddleware = async (req, res, next) => {
 
         const token = authHeader.split(' ')[1];
 
+        let decoded;
         try {
-            const decoded = jwtService.verifyAccessToken(token);
+            decoded = jwtService.verifyAccessToken(token);
 
             if (decoded.type !== 'access') {
                 return errorResponse(res, 'Invalid token type', 401);
             }
-
-            // Fetch user with role permissions
-            const [users] = await pool.query(
-                `SELECT u.id, u.email, u.role_id, r.permissions 
-                 FROM users u 
-                 LEFT JOIN roles r ON u.role_id = r.id 
-                 WHERE u.id = ?`,
-                [decoded.id]
-            );
-
-            if (!users.length) {
-                return errorResponse(res, 'User not found', 401);
-            }
-
-            const user = users[0];
-            req.user = {
-                id: decoded.id,
-                email: decoded.email,
-                role_id: decoded.role_id,
-                permissions: parseJSON(user.permissions) || []
-            };
-
-            next();
         } catch (error) {
             if (error.name === 'TokenExpiredError') {
                 return errorResponse(res, 'Access token expired', 401);
             }
-            if (error.name === 'JsonWebTokenError') {
-                return errorResponse(res, 'Invalid access token', 401);
-            }
-            throw error;
+            return errorResponse(res, 'Invalid access token', 401);
         }
+
+        // Fetch user with role permissions
+        const [users] = await pool.query(
+            `SELECT u.id, u.email, u.role_id, u.account_status, r.permissions 
+             FROM users u 
+             LEFT JOIN roles r ON u.role_id = r.id 
+             WHERE u.id = ?`,
+            [decoded.id]
+        );
+
+        if (!users.length) {
+            return errorResponse(res, 'User not found', 401);
+        }
+
+        const user = users[0];
+        if (user.account_status !== 'active') {
+            return errorResponse(res, 'Account is not active', 401);
+        }
+
+        req.user = {
+            id: decoded.id,
+            email: decoded.email,
+            role_id: user.role_id,
+            permissions: parseJSON(user.permissions) || []
+        };
+
+        next();
     } catch (error) {
         next(error);
     }

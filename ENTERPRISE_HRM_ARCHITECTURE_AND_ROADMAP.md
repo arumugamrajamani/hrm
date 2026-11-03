@@ -94,7 +94,7 @@ hrm/
 │   ├── routes/           # API route definitions with Swagger docs
 │   ├── utils/            # Logger, sanitizer, validators, helpers
 │   ├── database/
-│   │   ├── schema.sql    # Core schema (~67 tables, seed data, indexes, JSON columns)
+│   │   ├── schema.sql    # Core schema (~71 tables, seed data, indexes, JSON columns)
 │   │   ├── seed.sql      # Default data
 │   │   ├── migrate.js    # Migration runner
 │   │   └── migrations/   # SQL migrations 001-008 + JS migrations (001-007)
@@ -178,7 +178,7 @@ hrm/
 | **Checklist Templates** | onboarding_checklist_templates, checklist_items | 7 | ✅ Complete |
 | **Probation Tracking** | probation_tracking | 3 | ✅ Complete |
 
-**Total:** 67 tables, 150+ API endpoints, 4 views, 8 SQL migrations + 7 JS migrations
+**Total:** 71 tables, 150+ API endpoints, 4 views, 8 SQL migrations + 7 JS migrations
 
 ---
 
@@ -238,10 +238,16 @@ Layer 8: Enterprise
 
 | File | Purpose | Dependencies |
 |------|---------|-------------|
-| `schema.sql` | Core 26 tables + seed data + procedures + views | None |
-| `001_create_audit_logs.sql` | Audit logs enhancements | users |
-| `002_create_enterprise_tables.sql` | Webhooks, tenants, security tables | users |
-| `004_create_missing_module_tables.sql` | All 27 new module tables + seed + views | companies, business_units → departments/designations (ALTER) |
+| `schema.sql` | Full base schema (71 tables, seed data, views) | None |
+| `src/database/migrations/001_create_audit_logs.sql` | Audit logs table | users |
+| `src/database/migrations/002_create_enterprise_tables.sql` | Webhooks, tenants, security tables | users |
+| `src/database/migrations/003_add_profile_photo_to_users.sql` | Adds legacy `users.profile_photo` | users |
+| `src/database/migrations/004_create_missing_module_tables.sql` | Module tables, seed data, `business_unit_id` ALTERs | companies, business_units |
+| `src/database/migrations/008_remove_profile_photo_from_users.sql` | Removes the legacy `users.profile_photo` | users |
+| `migrations/001-007_*.js` | Lifecycle, onboarding, master data, attendance/leave, payroll, performance, employment types | schema.sql |
+
+`npm run migrate` executes the SQL files in numeric order, then the JS files in
+numeric order, and tracks each file in `schema_migrations`.
 
 ---
 
@@ -487,8 +493,15 @@ Layer 8: Enterprise
 ### Migration Execution Order
 ```bash
 mysql -u root -p < src/database/schema.sql
-node src/database/migrate.js  # runs 001, 002, 003, 004, ... in order
+npm run migrate              # SQL migrations 001→008, then JS migrations 001→007
+npm run migrate -- --force   # Re-run; already-applied objects are skipped
 ```
+
+`src/database/migrate.js` discovers every file in `src/database/migrations/`
+(`*.sql`) and `migrations/` (`*.js`), runs them in numeric order, and records
+each file in the `schema_migrations` table. Existing databases migrated before
+tracking was introduced are detected automatically and baselined, so only new
+migration files execute on subsequent runs.
 
 ### Key Files
 | File | Purpose |

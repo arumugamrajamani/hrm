@@ -1,19 +1,132 @@
 const Queue = require('bull');
+const redis = require('redis');
 const config = require('../config');
 const logger = require('../utils/logger');
+
+/**
+ * Queue definitions are created lazily in `initialize()` so that a missing
+ * Redis instance does not cause a storm of connection errors and unhandled
+ * rejections during startup. When Redis is unavailable the service reports
+ * itself as unavailable and jobs are simulated synchronously by callers.
+ */
+const QUEUE_DEFINITIONS = {
+    email: {
+        attempts: 3,
+        backoffType: 'exponential',
+        backoffDelay: 2000,
+        removeOnComplete: 100,
+        removeOnFail: 500
+    },
+    notifications: {
+        attempts: 3,
+        backoffType: 'exponential',
+        backoffDelay: 1000,
+        removeOnComplete: 200,
+        removeOnFail: 1000
+    },
+    audit: {
+        attempts: 5,
+        backoffType: 'fixed',
+        backoffDelay: 5000,
+        removeOnComplete: 500,
+        removeOnFail: 5000
+    },
+    webhook: {
+        attempts: 3,
+        backoffType: 'exponential',
+        backoffDelay: 3000,
+        removeOnComplete: 200,
+        removeOnFail: 1000
+    },
+    export: {
+        attempts: 2,
+        backoffType: 'exponential',
+        backoffDelay: 5000,
+        removeOnComplete: 50,
+        removeOnFail: 100
+    }
+};
 
 class QueueService {
     constructor() {
         this.queues = new Map();
+        this.pendingProcessors = new Map();
         this.isConnected = false;
-        this.isRedisAvailable = true;
+        this.isRedisAvailable = false;
+        this.isInitialized = false;
         this.connectionAttempts = 0;
         this.maxConnectionAttempts = 3;
+        this.queueErrorLogged = new Set();
+    }
+
+    /**
+     * Probe the Bull Redis instance before creating any queues. A failed probe
+     * is expected when Redis is optional, so it is logged once and queues are
+     * left disabled instead of retrying five times per queue.
+     */
+    async checkRedisConnection() {
+        const { REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB } = config.BULL_QUEUE;
+
+        const client = redis.createClient({
+            socket: {
+                host: REDIS_HOST,
+                port: REDIS_PORT,
+                connectTimeout: 1500,
+                reconnectStrategy: false
+            },
+            password: REDIS_PASSWORD || undefined,
+            database: REDIS_DB
+        });
+
+        // Prevent an unhandled 'error' event while the probe is running.
+        client.on('error', () => {});
+
+        try {
+            await client.connect();
+            await client.ping();
+            return true;
+        } catch (error) {
+            return false;
+        } finally {
+            if (client.isOpen) {
+                try {
+                    await client.quit();
+                } catch (error) {
+                    // The client may already be closing; nothing to clean up.
+                }
+            }
+        }
+    }
+
+    async initialize() {
+        if (this.isInitialized) {
+            return this.isRedisAvailable;
+        }
+
+        this.isInitialized = true;
+        this.isRedisAvailable = await this.checkRedisConnection();
+
+        if (!this.isRedisAvailable) {
+            logger.warn('Redis unavailable - job queues disabled; jobs will run synchronously');
+            return false;
+        }
+
+        for (const [name, options] of Object.entries(QUEUE_DEFINITIONS)) {
+            this.createQueue(name, options);
+        }
+
+        this.registerPendingProcessors();
+        logger.info('Job queues initialized');
+        return true;
     }
 
     createQueue(name, options = {}) {
         if (this.queues.has(name)) {
             return this.queues.get(name);
+        }
+
+        if (!this.isRedisAvailable) {
+            return null;
         }
 
         const queueOptions = {
@@ -27,9 +140,9 @@ class QueueService {
                 retryStrategy: (times) => {
                     this.connectionAttempts++;
                     if (times > this.maxConnectionAttempts) {
-                        logger.warn(`Queue [${name}] max connection attempts reached, queue disabled`);
                         this.isRedisAvailable = false;
-                        return false;
+                        logger.warn(`Queue [${name}] connection retries exhausted, queue disabled`);
+                        return null;
                     }
                     return Math.min(times * 1000, 5000);
                 }
@@ -42,22 +155,27 @@ class QueueService {
                     type: options.backoffType || 'exponential',
                     delay: options.backoffDelay || 2000
                 }
-            },
-            ...options
+            }
         };
 
         try {
             const queue = new Queue(name, queueOptions);
 
             queue.on('error', (error) => {
-                if (this.isRedisAvailable) {
-                    logger.error(`Queue [${name}] error`, { error: error.message });
+                if (!this.isRedisAvailable) {
+                    return;
+                }
+                if (!this.queueErrorLogged.has(name)) {
+                    this.queueErrorLogged.add(name);
+                    logger.error(`Queue [${name}] error`, {
+                        error: error?.message || error?.code || String(error)
+                    });
                 }
             });
 
             queue.on('failed', (job, error) => {
                 if (this.isRedisAvailable) {
-                    logger.error(`Queue [${name}] job ${job.id} failed`, { 
+                    logger.error(`Queue [${name}] job ${job.id} failed`, {
                         error: error.message,
                         attemptsMade: job.attemptsMade
                     });
@@ -66,16 +184,16 @@ class QueueService {
 
             queue.on('completed', (job) => {
                 if (this.isRedisAvailable) {
-                    logger.debug(`Queue [${name}] job ${job.id} completed`, { 
-                        progress: job.progress() 
+                    logger.debug(`Queue [${name}] job ${job.id} completed`, {
+                        progress: job.progress()
                     });
                 }
             });
 
             queue.on('stalled', (job) => {
                 if (this.isRedisAvailable) {
-                    logger.warn(`Queue [${name}] job ${job.id} stalled`, { 
-                        attemptsMade: job.attemptsMade 
+                    logger.warn(`Queue [${name}] job ${job.id} stalled`, {
+                        attemptsMade: job.attemptsMade
                     });
                 }
             });
@@ -83,14 +201,12 @@ class QueueService {
             queue.on('ready', () => {
                 this.isConnected = true;
                 this.isRedisAvailable = true;
+                this.queueErrorLogged.delete(name);
                 logger.info(`Queue [${name}] is ready`);
             });
 
             this.queues.set(name, queue);
-            
-            if (this.isRedisAvailable) {
-                logger.info(`Queue [${name}] created`);
-            }
+            logger.info(`Queue [${name}] created`);
 
             return queue;
         } catch (error) {
@@ -103,15 +219,65 @@ class QueueService {
         return this.queues.get(name);
     }
 
+    registerPendingProcessors() {
+        for (const name of this.pendingProcessors.keys()) {
+            this.attachProcessor(name);
+        }
+    }
+
+    attachProcessor(name) {
+        const queue = this.getQueue(name);
+        const entry = this.pendingProcessors.get(name);
+
+        if (!queue || !entry || entry.registered) {
+            return false;
+        }
+
+        queue.process(entry.concurrency, async (job) => {
+            try {
+                logger.debug(`Processing job ${job.id} from queue [${name}]`);
+                return await entry.processor(job);
+            } catch (error) {
+                logger.error(`Error processing job ${job.id} from queue [${name}]`, {
+                    error: error.message
+                });
+                throw error;
+            }
+        });
+
+        entry.registered = true;
+        logger.info(`Queue [${name}] processor registered with concurrency: ${entry.concurrency}`);
+        return true;
+    }
+
+    /**
+     * Register a processor. If the queues have not been initialized yet (or
+     * Redis is unavailable) the processor is stored and attached once queues
+     * become available, so module-level registrations are not lost.
+     */
+    process(name, processor, concurrency = 1) {
+        this.pendingProcessors.set(name, {
+            processor,
+            concurrency,
+            registered: false
+        });
+
+        const registered = this.attachProcessor(name);
+        if (!registered && this.isInitialized) {
+            logger.warn(`Queue [${name}] unavailable, processor deferred`);
+        }
+        return registered;
+    }
+
     async add(name, data, options = {}) {
         const queue = this.getQueue(name);
-        
+
         if (!queue || !this.isRedisAvailable) {
             logger.warn(`Queue [${name}] unavailable, simulating job execution`);
-            return { 
+            return {
                 id: `sync-${Date.now()}`,
                 data,
-                simulate: true 
+                simulate: true
             };
         }
 
@@ -138,31 +304,6 @@ class QueueService {
             logger.error(`Failed to add job to queue [${name}]`, { error: error.message });
             throw error;
         }
-    }
-
-    async process(name, processor, concurrency = 1) {
-        const queue = this.getQueue(name);
-        
-        if (!queue || !this.isRedisAvailable) {
-            logger.warn(`Queue [${name}] unavailable, processor not registered`);
-            return false;
-        }
-
-        queue.process(concurrency, async (job) => {
-            try {
-                logger.debug(`Processing job ${job.id} from queue [${name}]`);
-                const result = await processor(job);
-                return result;
-            } catch (error) {
-                logger.error(`Error processing job ${job.id} from queue [${name}]`, { 
-                    error: error.message 
-                });
-                throw error;
-            }
-        });
-
-        logger.info(`Queue [${name}] processor registered with concurrency: ${concurrency}`);
-        return true;
     }
 
     async getJobCounts(name) {
@@ -245,18 +386,19 @@ class QueueService {
     }
 
     async closeAll() {
-        const closePromises = [];
-        this.queues.forEach((queue, name) => {
+        const queues = [...this.queues.entries()];
+        this.queues.clear();
+        this.isConnected = false;
+
+        await Promise.allSettled(queues.map(async ([name, queue]) => {
+            logger.info(`Closing queue [${name}]`);
             try {
-                closePromises.push(queue.close());
-                logger.info(`Closing queue [${name}]`);
+                await queue.close();
             } catch (error) {
                 logger.warn(`Error closing queue [${name}]: ${error.message}`);
             }
-        });
+        }));
 
-        await Promise.all(closePromises);
-        this.queues.clear();
         logger.info('All queues closed');
     }
 
@@ -285,45 +427,5 @@ class QueueService {
 }
 
 const queueService = new QueueService();
-
-queueService.createQueue('email', {
-    attempts: 3,
-    backoffType: 'exponential',
-    backoffDelay: 2000,
-    removeOnComplete: 100,
-    removeOnFail: 500
-});
-
-queueService.createQueue('notifications', {
-    attempts: 3,
-    backoffType: 'exponential',
-    backoffDelay: 1000,
-    removeOnComplete: 200,
-    removeOnFail: 1000
-});
-
-queueService.createQueue('audit', {
-    attempts: 5,
-    backoffType: 'fixed',
-    backoffDelay: 5000,
-    removeOnComplete: 500,
-    removeOnFail: 5000
-});
-
-queueService.createQueue('webhook', {
-    attempts: 3,
-    backoffType: 'exponential',
-    backoffDelay: 3000,
-    removeOnComplete: 200,
-    removeOnFail: 1000
-});
-
-queueService.createQueue('export', {
-    attempts: 2,
-    backoffType: 'exponential',
-    backoffDelay: 5000,
-    removeOnComplete: 50,
-    removeOnFail: 100
-});
 
 module.exports = queueService;

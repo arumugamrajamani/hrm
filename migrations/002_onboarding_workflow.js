@@ -218,15 +218,19 @@ async function down() {
 const command = process.argv[2] || 'up';
 
 if (command === 'up') {
-    up().catch(err => {
-        console.error('Migration failed:', err);
-        process.exit(1);
-    });
+    up()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error('Migration failed:', err);
+            process.exit(1);
+        });
 } else if (command === 'down') {
-    down().catch(err => {
-        console.error('Rollback failed:', err);
-        process.exit(1);
-    });
+    down()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error('Rollback failed:', err);
+            process.exit(1);
+        });
 } else {
     console.log('Usage: node migrations/002_onboarding_workflow.js [up|down]');
     process.exit(1);

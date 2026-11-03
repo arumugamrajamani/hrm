@@ -1,8 +1,9 @@
 const userRepository = require('../repositories/userRepository');
 const authRepository = require('../repositories/authRepository');
-const { hashPassword, generateRandomPassword } = require('../utils/passwordUtils');
+const { hashPassword, generateRandomPassword, validatePasswordStrength } = require('../utils/passwordUtils');
 const { sendEmail } = require('../config/mail');
 const { getWelcomeEmailTemplate } = require('../utils/emailTemplates');
+const { sanitizeUser } = require('../utils/helpers');
 const config = require('../config');
 
 class UserService {
@@ -15,7 +16,7 @@ class UserService {
         if (!user) {
             throw new Error('User not found');
         }
-        return user;
+        return sanitizeUser(user);
     }
 
     async createUser(userData) {
@@ -29,13 +30,22 @@ class UserService {
             throw new Error('Username already exists');
         }
 
-        if (await userRepository.mobileExists(mobile)) {
+        if (mobile && await userRepository.mobileExists(mobile)) {
             throw new Error('Mobile number already exists');
         }
 
         const role = await userRepository.getRoleById(role_id);
         if (!role) {
-            throw new Error('Invalid role');
+            const error = new Error('Invalid role');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const passwordValidation = validatePasswordStrength(password);
+        if (!passwordValidation.isValid) {
+            const error = new Error(passwordValidation.errors.join(', '));
+            error.statusCode = 400;
+            throw error;
         }
 
         const passwordHash = await hashPassword(password);
@@ -43,10 +53,12 @@ class UserService {
         const userId = await userRepository.create({
             username,
             email,
-            mobile,
+            mobile: mobile || null,
             password: passwordHash,
             role_id
         });
+
+        await authRepository.addToPasswordHistory(userId, passwordHash);
 
         return { userId, message: 'User created successfully' };
     }
@@ -62,13 +74,15 @@ class UserService {
             throw new Error('Username already exists');
         }
 
-        if (await userRepository.mobileExists(mobile)) {
+        if (mobile && await userRepository.mobileExists(mobile)) {
             throw new Error('Mobile number already exists');
         }
 
         const role = await userRepository.getRoleById(role_id);
         if (!role) {
-            throw new Error('Invalid role');
+            const error = new Error('Invalid role');
+            error.statusCode = 400;
+            throw error;
         }
 
         const generatedPassword = generateRandomPassword(12);
@@ -77,7 +91,7 @@ class UserService {
         const userId = await userRepository.create({
             username,
             email,
-            mobile,
+            mobile: mobile || null,
             password: passwordHash,
             role_id,
             status: 'active'
@@ -121,8 +135,17 @@ class UserService {
         if (userData.role_id) {
             const role = await userRepository.getRoleById(userData.role_id);
             if (!role) {
-                throw new Error('Invalid role');
+                const error = new Error('Invalid role');
+                error.statusCode = 400;
+                throw error;
             }
+        }
+
+        const updatableFields = ['username', 'email', 'mobile', 'role_id', 'status', 'account_status'];
+        if (!updatableFields.some((field) => userData[field] !== undefined)) {
+            const error = new Error('No fields to update');
+            error.statusCode = 400;
+            throw error;
         }
 
         const updated = await userRepository.update(id, userData);

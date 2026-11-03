@@ -191,7 +191,7 @@ class EmployeeController {
             };
             
             const jobDetails = await employeeService.updateJobDetails(parseInt(id), jobData);
-            return successResponse(res, jobDetails, 'Job details updated successfully');
+            return successResponse(res, jobDetails, 'Job details updated successfully', 201);
         } catch (error) {
             next(error);
         }

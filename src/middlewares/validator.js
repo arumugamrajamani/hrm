@@ -116,8 +116,8 @@ const createUserValidation = [
         .isEmail().withMessage('Invalid email format')
         .normalizeEmail(),
     body('mobile')
+        .optional({ checkFalsy: true })
         .trim()
-        .notEmpty().withMessage('Mobile number is required')
         .matches(/^\+?[1-9]\d{6,14}$/).withMessage('Invalid mobile number format'),
     body('password')
         .notEmpty().withMessage('Password is required')
@@ -144,8 +144,8 @@ const createUserWithEmailValidation = [
         .isEmail().withMessage('Invalid email format')
         .normalizeEmail(),
     body('mobile')
+        .optional({ checkFalsy: true })
         .trim()
-        .notEmpty().withMessage('Mobile number is required')
         .matches(/^\+?[1-9]\d{6,14}$/).withMessage('Invalid mobile number format'),
     body('role_id')
         .notEmpty().withMessage('Role is required')
@@ -174,8 +174,8 @@ const updateUserValidation = [
         .optional()
         .isInt({ min: 1 }).withMessage('Invalid role ID'),
     body('status')
-        .optional()
-        .isIn(['active', 'inactive']).withMessage('Status must be active or inactive'),
+        .optional({ checkFalsy: true })
+        .isIn(['active', 'inactive', 'blocked']).withMessage('Status must be one of: active, inactive, blocked'),
     validate
 ];
 

@@ -81,7 +81,9 @@ class AuthService {
         }
 
         if (user.status === 'blocked') {
-            throw new Error('Account is blocked. Please contact administrator');
+            const error = new Error('Account is blocked. Please contact administrator');
+            error.statusCode = 403;
+            throw error;
         }
 
         const loginAttempts = await authRepository.getLoginAttempts(user.id);
@@ -122,7 +124,9 @@ class AuthService {
         }
 
         if (user.status !== 'active') {
-            await userRepository.update(user.id, { status: 'active' });
+            const error = new Error('Account is inactive. Please contact administrator');
+            error.statusCode = 403;
+            throw error;
         }
 
         await authRepository.resetLoginAttempts(user.id);
