@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     retry_count INT DEFAULT 3,
     timeout_seconds INT DEFAULT 30,
     headers JSON NULL,
-    created_by INT NULL,
+    created_by BIGINT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
     payload_template JSON,
     headers JSON,
     is_active BOOLEAN DEFAULT TRUE,
-    created_by INT NULL,
+    created_by BIGINT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (endpoint_id) REFERENCES webhook_endpoints(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS ip_blocklist (
     id INT PRIMARY KEY AUTO_INCREMENT,
     ip_address VARCHAR(45) NOT NULL UNIQUE,
     reason VARCHAR(255) NULL,
-    blocked_by INT NULL,
+    blocked_by BIGINT NULL,
     expires_at DATETIME NULL,
     is_permanent BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS ip_blocklist (
 -- Create user_totp_secrets table
 CREATE TABLE IF NOT EXISTS user_totp_secrets (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL UNIQUE,
+    user_id BIGINT NOT NULL UNIQUE,
     secret VARCHAR(255) NOT NULL,
     is_enabled BOOLEAN DEFAULT TRUE,
     backup_codes JSON NULL,
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS user_totp_secrets (
 -- Create api_keys table
 CREATE TABLE IF NOT EXISTS api_keys (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id BIGINT NOT NULL,
     key_name VARCHAR(100) NOT NULL,
     key_hash VARCHAR(255) NOT NULL,
     key_prefix VARCHAR(20) NOT NULL,

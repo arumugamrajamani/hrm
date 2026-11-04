@@ -96,6 +96,13 @@ class AttendanceService {
     async markAttendance(attendanceData) {
         const { employee_id, attendance_date } = attendanceData;
 
+        const employee = await attenanceModel.findEmployeeById(employee_id);
+        if (!employee) {
+            const error = new Error('Employee not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
         const existing = await attenanceModel.findAttendanceByEmployeeAndDate(employee_id, attendance_date);
         if (existing) {
             const error = new Error('Attendance already marked for this date');
@@ -227,6 +234,12 @@ class AttendanceService {
         if (!existing) {
             const error = new Error('Leave request not found');
             error.statusCode = 404;
+            throw error;
+        }
+
+        if (existing.status !== 'pending') {
+            const error = new Error('Leave request has already been processed');
+            error.statusCode = 400;
             throw error;
         }
 

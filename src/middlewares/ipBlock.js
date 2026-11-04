@@ -88,7 +88,7 @@ class IPBlocklistService {
 
     async getBlockedIPs(limit = 100, offset = 0) {
         try {
-            const [rows] = await pool.execute(
+            const [rows] = await pool.query(
                 `SELECT ib.*, u.username as blocked_by_username
                  FROM ip_blocklist ib
                  LEFT JOIN users u ON ib.blocked_by = u.id
@@ -127,9 +127,15 @@ class IPBlocklistService {
 
 const ipBlocklistService = new IPBlocklistService();
 
-setInterval(() => {
-    ipBlocklistService.cleanupExpired();
+const cleanupTimer = setInterval(() => {
+    ipBlocklistService.cleanupExpired().catch((error) => {
+        logger.error('Scheduled IP blocklist cleanup failed', { error: error.message });
+    });
 }, 60 * 60 * 1000);
+
+if (typeof cleanupTimer.unref === 'function') {
+    cleanupTimer.unref();
+}
 
 const ipBlockMiddleware = async (req, res, next) => {
     const ip = ipBlocklistService.getClientIP(req);

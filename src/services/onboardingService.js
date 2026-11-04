@@ -109,8 +109,8 @@ class OnboardingService {
         });
 
         if (!updated) {
-            const error = new Error('Failed to update checklist item');
-            error.statusCode = 500;
+            const error = new Error('Checklist item not found for this onboarding record');
+            error.statusCode = 404;
             throw error;
         }
 
@@ -125,7 +125,14 @@ class OnboardingService {
             throw error;
         }
 
-        return await onboardingModel.getProbationTracking(employeeId);
+        const tracking = await onboardingModel.getProbationTracking(employeeId);
+        if (!tracking) {
+            const error = new Error('Probation tracking not found for this employee');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        return tracking;
     }
 
     async createProbationTracking(employeeId, { probation_start_date, probation_end_date, created_by }) {

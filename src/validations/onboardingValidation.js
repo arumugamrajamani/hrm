@@ -71,6 +71,15 @@ const idSchema = Joi.object({
     })
 });
 
+const employeeIdSchema = Joi.object({
+    id: Joi.number().integer().positive().required().messages({
+        'number.base': 'Employee ID must be a number',
+        'number.integer': 'Employee ID must be an integer',
+        'number.positive': 'Employee ID must be positive',
+        'any.required': 'Employee ID is required'
+    })
+});
+
 const onboardingIdSchema = Joi.object({
     onboardingId: Joi.number().integer().positive().required().messages({
         'number.base': 'Onboarding ID must be a number',
@@ -101,6 +110,7 @@ module.exports = {
     createProbationSchema,
     updateProbationSchema,
     idSchema,
+    employeeIdSchema,
     onboardingIdSchema,
     itemIdSchema,
     querySchema

@@ -145,6 +145,16 @@ const closePool = async () => {
     }
 };
 
+const checkDatabaseHealth = async () => {
+    try {
+        await pool.query('SELECT 1');
+        return true;
+    } catch (error) {
+        logger.error('Database health check failed', { error: error.message });
+        return false;
+    }
+};
+
 setInterval(() => {
     try {
         const poolState = pool.pool;
@@ -167,5 +177,6 @@ module.exports = {
     execute,
     queryWithConnection,
     executeWithConnection,
-    closePool
+    closePool,
+    checkDatabaseHealth
 };

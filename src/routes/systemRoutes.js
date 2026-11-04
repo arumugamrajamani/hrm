@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getPoolMetrics } = require('../config/database');
+const { getPoolMetrics, checkDatabaseHealth } = require('../config/database');
 const { getAllCircuitBreakers } = require('../services/circuitBreaker');
 const queueService = require('../services/queueService');
 const cacheService = require('../services/cacheService');
@@ -73,6 +73,7 @@ router.get('/health', (req, res) => {
  *         description: Service degraded or unhealthy
  */
 router.get('/health/detailed', asyncHandler(async (req, res) => {
+    const dbHealthy = await checkDatabaseHealth();
     const dbMetrics = getPoolMetrics();
     const redisStatus = cacheService.isConnected ? 'connected' : 'disconnected';
     const circuitBreakers = getAllCircuitBreakers();
@@ -80,7 +81,7 @@ router.get('/health/detailed', asyncHandler(async (req, res) => {
 
     const checks = {
         database: {
-            status: dbMetrics.isHealthy ? 'healthy' : 'unhealthy',
+            status: dbHealthy ? 'healthy' : 'unhealthy',
             ...dbMetrics
         },
         redis: {
@@ -139,9 +140,9 @@ router.get('/health/live', (req, res) => {
  *         description: Server not ready (database unavailable)
  */
 router.get('/health/ready', asyncHandler(async (req, res) => {
-    const dbMetrics = getPoolMetrics();
+    const dbHealthy = await checkDatabaseHealth();
     
-    if (!dbMetrics.isHealthy) {
+    if (!dbHealthy) {
         return res.status(503).json({
             success: false,
             status: 'not ready',

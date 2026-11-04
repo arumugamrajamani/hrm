@@ -334,19 +334,11 @@ class EmployeeService {
     }
 
     async restoreEmployee(id) {
-        const employee = await employeeModel.findById(id);
-        
-        if (!employee) {
-            const error = new Error('Employee not found');
-            error.statusCode = 404;
-            throw error;
-        }
-
         const restored = await employeeModel.restore(id);
         
         if (!restored) {
-            const error = new Error('Failed to restore employee');
-            error.statusCode = 500;
+            const error = new Error('Employee not found');
+            error.statusCode = 404;
             throw error;
         }
 

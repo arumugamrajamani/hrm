@@ -11,7 +11,7 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const { generalLimiter, authLimiter } = require('./middlewares/rateLimiter');
 const logger = require('./utils/logger');
 const { requestSanitizer } = require('./utils/sanitizer');
-const { getPoolMetrics } = require('./config/database');
+const { getPoolMetrics, checkDatabaseHealth } = require('./config/database');
 const cacheService = require('./services/cacheService');
 const { getAllCircuitBreakers } = require('./services/circuitBreaker');
 const queueService = require('./services/queueService');
@@ -147,6 +147,7 @@ app.get('/health', (req, res) => {
 
 app.get('/health/detailed', async (req, res) => {
     try {
+        const dbHealthy = await checkDatabaseHealth();
         const dbMetrics = getPoolMetrics();
         const redisStatus = cacheService.isConnected ? 'connected' : 'disconnected';
         const circuitBreakers = getAllCircuitBreakers();
@@ -154,7 +155,7 @@ app.get('/health/detailed', async (req, res) => {
 
         const checks = {
             database: {
-                status: dbMetrics.isHealthy ? 'healthy' : 'unhealthy',
+                status: dbHealthy ? 'healthy' : 'unhealthy',
                 ...dbMetrics
             },
             redis: {
@@ -198,9 +199,9 @@ app.get('/health/live', (req, res) => {
 
 app.get('/health/ready', async (req, res) => {
     try {
-        const dbMetrics = getPoolMetrics();
+        const dbHealthy = await checkDatabaseHealth();
         
-        if (!dbMetrics.isHealthy) {
+        if (!dbHealthy) {
             return res.status(503).json({
                 success: false,
                 status: 'not ready',

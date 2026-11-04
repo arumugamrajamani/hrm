@@ -481,6 +481,12 @@ const designationIdValidation = [
     validate
 ];
 
+const employeeIdValidation = [
+    param('id')
+        .isInt({ min: 1 }).withMessage('Invalid employee ID'),
+    validate
+];
+
 module.exports = {
     validate,
     registerValidation,
@@ -502,5 +508,6 @@ module.exports = {
     locationIdValidation,
     createDesignationValidation,
     updateDesignationValidation,
-    designationIdValidation
+    designationIdValidation,
+    employeeIdValidation
 };

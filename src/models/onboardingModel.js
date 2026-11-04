@@ -131,7 +131,7 @@ class OnboardingModel {
     static async update(id, data) {
         const allowedFields = [
             'template_id', 'status', 'joining_date', 'actual_joining_date',
-            'probation_end_date', 'confirmation_date', 'onboarding_completion_date', 'remarks'
+            'probation_end_date', 'confirmation_date', 'onboarding_completion_date', 'remarks', 'updated_by'
         ];
         const updates = [];
         const params = [];
@@ -175,10 +175,12 @@ class OnboardingModel {
         const query = `
             UPDATE employee_checklist_progress 
             SET status = ?, remarks = ?, attachment_path = ?, 
-                completed_by = ?, completed_at = NOW(), updated_at = NOW()
+                completed_by = ?,
+                completed_at = CASE WHEN ? = 'completed' THEN NOW() ELSE NULL END,
+                updated_at = NOW()
             WHERE onboarding_id = ? AND checklist_item_id = ?
         `;
-        const [result] = await pool.query(query, [status, remarks, attachment_path, completed_by, onboardingId, itemId]);
+        const [result] = await pool.query(query, [status, remarks, attachment_path, completed_by, status, onboardingId, itemId]);
         
         if (status === 'completed') {
             await this.checkAndUpdateOnboardingStatus(onboardingId);
@@ -191,7 +193,7 @@ class OnboardingModel {
         const [pendingItems] = await pool.query(`
             SELECT COUNT(*) as count FROM employee_checklist_progress 
             WHERE onboarding_id = ? AND status != 'completed'
-        `);
+        `, [onboardingId]);
 
         if (pendingItems[0].count === 0) {
             await pool.query(`

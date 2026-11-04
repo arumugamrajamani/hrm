@@ -41,24 +41,35 @@ class AttendanceModel {
         return rows[0] || null;
     }
 
+    static async generateShiftCode() {
+        const [rows] = await pool.query('SELECT COUNT(*) as count FROM shifts');
+        return `SHF${String(rows[0].count + 1).padStart(3, '0')}`;
+    }
+
     static async createShift(shiftData) {
-        const { shift_name, start_time, end_time, break_duration, weekoff_days, is_flexible, grace_period_minutes, created_by } = shiftData;
-        
+        const {
+            shift_name, shift_code, start_time, end_time, break_duration,
+            weekoff_days, is_flexible, grace_period_minutes, status, created_by
+        } = shiftData;
+
+        const code = shift_code || await this.generateShiftCode();
+
         const query = `
             INSERT INTO shifts 
-            (shift_name, start_time, end_time, break_duration, weekoff_days, is_flexible, grace_period_minutes, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            (shift_name, shift_code, start_time, end_time, break_duration, weekoff_days, is_flexible, grace_period_minutes, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
         
         const [result] = await pool.query(query, [
-            shift_name, start_time, end_time, break_duration, weekoff_days, is_flexible, grace_period_minutes, created_by
+            shift_name, code, start_time, end_time, break_duration,
+            weekoff_days, is_flexible, grace_period_minutes, status || 'active', created_by
         ]);
         
         return result.insertId;
     }
 
     static async updateShift(id, shiftData) {
-        const allowedFields = ['shift_name', 'start_time', 'end_time', 'break_duration', 'weekoff_days', 'is_flexible', 'grace_period_minutes', 'status', 'updated_by'];
+        const allowedFields = ['shift_code', 'shift_name', 'start_time', 'end_time', 'break_duration', 'weekoff_days', 'is_flexible', 'grace_period_minutes', 'status', 'updated_by'];
         const updates = [];
         const params = [];
 
@@ -126,16 +137,16 @@ class AttendanceModel {
     }
 
     static async createHoliday(holidayData) {
-        const { holiday_name, holiday_date, description, is_national, location_id, created_by } = holidayData;
+        const { holiday_name, holiday_date, description, is_national, location_id, status, created_by } = holidayData;
         
         const query = `
             INSERT INTO holiday_calendar 
-            (holiday_name, holiday_date, description, is_national, location_id, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            (holiday_name, holiday_date, description, is_national, location_id, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         `;
         
         const [result] = await pool.query(query, [
-            holiday_name, holiday_date, description, is_national, location_id, created_by
+            holiday_name, holiday_date, description, is_national, location_id, status || 'active', created_by
         ]);
         
         return result.insertId;
@@ -275,7 +286,7 @@ class AttendanceModel {
     }
 
     static async findAttendanceByEmployeeAndDate(employee_id, attendance_date) {
-        const query = `SELECT * FROM attendance_records WHERE employee_id = ? AND attendance_date = ?`;
+        const query = `SELECT * FROM attendance_records WHERE employee_id = ? AND attendance_date = DATE(?)`;
         const [rows] = await pool.query(query, [employee_id, attendance_date]);
         return rows[0] || null;
     }
@@ -323,16 +334,16 @@ class AttendanceModel {
     }
 
     static async createLeaveType(leaveTypeData) {
-        const { leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, created_by } = leaveTypeData;
+        const { leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, status, created_by } = leaveTypeData;
         
         const query = `
             INSERT INTO leave_types 
-            (leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            (leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
         
         const [result] = await pool.query(query, [
-            leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, created_by
+            leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, status || 'active', created_by
         ]);
         
         return result.insertId;
@@ -457,7 +468,7 @@ class AttendanceModel {
     }
 
     static async createLeaveRequest(requestData) {
-        const { employee_id, leave_type_id, start_date, end_date, total_days, reason, applied_by } = requestData;
+        const { employee_id, leave_type_id, start_date, end_date, total_days, reason } = requestData;
         
         const conn = await pool.getConnection();
         try {
@@ -465,9 +476,9 @@ class AttendanceModel {
 
             const [result] = await conn.query(`
                 INSERT INTO leave_requests 
-                (employee_id, leave_type_id, start_date, end_date, total_days, reason, applied_by, applied_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            `, [employee_id, leave_type_id, start_date, end_date, total_days, reason, applied_by]);
+                (employee_id, leave_type_id, start_date, end_date, total_days, reason, applied_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            `, [employee_id, leave_type_id, start_date, end_date, total_days, reason]);
             
             await conn.commit();
             return result.insertId;
@@ -560,16 +571,16 @@ class AttendanceModel {
     }
 
     static async createTimesheet(timesheetData) {
-        const { employee_id, timesheet_date, project_code, task_description, hours_worked, is_billable, created_by } = timesheetData;
+        const { employee_id, timesheet_date, project_code, task_description, hours_worked, is_billable } = timesheetData;
         
         const query = `
             INSERT INTO timesheets 
-            (employee_id, timesheet_date, project_code, task_description, hours_worked, is_billable, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            (employee_id, timesheet_date, project_code, task_description, hours_worked, is_billable, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
         `;
         
         const [result] = await pool.query(query, [
-            employee_id, timesheet_date, project_code, task_description, hours_worked, is_billable, created_by
+            employee_id, timesheet_date, project_code, task_description, hours_worked, is_billable
         ]);
         
         return result.insertId;

@@ -11,7 +11,27 @@ class TOTPService {
     }
 
     generateSecret() {
-        return crypto.randomBytes(20).toString('base32');
+        const bytes = crypto.randomBytes(20);
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let bits = 0;
+        let value = 0;
+        let output = '';
+
+        for (const byte of bytes) {
+            value = (value << 8) | byte;
+            bits += 8;
+
+            while (bits >= 5) {
+                output += alphabet[(value >>> (bits - 5)) & 31];
+                bits -= 5;
+            }
+        }
+
+        if (bits > 0) {
+            output += alphabet[(value << (5 - bits)) & 31];
+        }
+
+        return output;
     }
 
     generateOTP(secret, time = Date.now()) {
@@ -28,7 +48,7 @@ class TOTPService {
             value = Math.floor(value / 256);
         }
 
-        const hmac = crypto.createHmac(this.algorithm, this.base32ToHex(secret));
+        const hmac = crypto.createHmac(this.algorithm, this.base32ToBuffer(secret));
         hmac.update(buffer);
         const hmacHash = hmac.digest();
 
@@ -68,23 +88,26 @@ class TOTPService {
         return result === 0;
     }
 
-    base32ToHex(base32) {
+    base32ToBuffer(base32) {
         const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-        let bits = '';
-        
-        for (let i = 0; i < base32.length; i++) {
-            const char = base32[i].toUpperCase();
+        let bits = 0;
+        let value = 0;
+        const bytes = [];
+
+        for (const char of base32.replace(/=+$/, '').toUpperCase()) {
             const val = base32Chars.indexOf(char);
             if (val === -1) continue;
-            bits += val.toString(2).padStart(5, '0');
+
+            value = (value << 5) | val;
+            bits += 5;
+
+            if (bits >= 8) {
+                bytes.push((value >>> (bits - 8)) & 0xff);
+                bits -= 8;
+            }
         }
-        
-        let hex = '';
-        for (let i = 0; i + 4 <= bits.length; i += 4) {
-            hex += parseInt(bits.substring(i, i + 4), 2).toString(16);
-        }
-        
-        return hex.padStart(Math.ceil(hex.length / 2) * 2, '0');
+
+        return Buffer.from(bytes);
     }
 
     generateURI(secret, accountName) {

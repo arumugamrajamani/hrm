@@ -2,6 +2,9 @@ const Joi = require('joi');
 
 // ==================== SHIFTS ====================
 const createShiftSchema = Joi.object({
+    shift_code: Joi.string().trim().max(20).allow('', null).messages({
+        'string.max': 'Shift code must not exceed 20 characters'
+    }),
     shift_name: Joi.string().trim().min(2).max(50).required().messages({
         'string.empty': 'Shift name is required',
         'string.min': 'Shift name must be at least 2 characters',
@@ -34,6 +37,9 @@ const createShiftSchema = Joi.object({
 });
 
 const updateShiftSchema = Joi.object({
+    shift_code: Joi.string().trim().max(20).allow('', null).messages({
+        'string.max': 'Shift code must not exceed 20 characters'
+    }),
     shift_name: Joi.string().trim().min(2).max(50).messages({
         'string.empty': 'Shift name cannot be empty',
         'string.min': 'Shift name must be at least 2 characters',

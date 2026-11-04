@@ -9,7 +9,7 @@ const {
     createOnboardingSchema, updateOnboardingSchema,
     updateChecklistItemSchema,
     createProbationSchema, updateProbationSchema,
-    idSchema, onboardingIdSchema, itemIdSchema,
+    idSchema, employeeIdSchema, onboardingIdSchema, itemIdSchema,
     querySchema
 } = require('../validations/onboardingValidation');
 
@@ -70,7 +70,9 @@ router.get('/', validateQuery(querySchema), auditLog('READ', 'employee_onboardin
  *       201:
  *         description: Onboarding record created successfully
  *       400:
- *         description: Onboarding already exists or validation error
+ *         description: Validation error
+ *       409:
+ *         description: Onboarding already exists for this employee
  *       404:
  *         description: Employee or template not found
  *       401:
@@ -128,7 +130,7 @@ router.get('/:id', validateParams(idSchema), auditLog('READ', 'employee_onboardi
  *       401:
  *         description: Unauthorized
  */
-router.get('/employee/:id', validateParams(idSchema), auditLog('READ', 'employee_onboarding'), onboardingController.getOnboardingByEmployeeId);
+router.get('/employee/:id', validateParams(employeeIdSchema), auditLog('READ', 'employee_onboarding'), onboardingController.getOnboardingByEmployeeId);
 
 /**
  * @swagger
@@ -229,7 +231,7 @@ router.patch('/:onboardingId/checklist/:itemId', validateParams(onboardingIdSche
  *       401:
  *         description: Unauthorized
  */
-router.get('/probation/:id', validateParams(idSchema), auditLog('READ', 'probation_tracking'), onboardingController.getProbationTracking);
+router.get('/probation/:id', validateParams(employeeIdSchema), auditLog('READ', 'probation_tracking'), onboardingController.getProbationTracking);
 
 /**
  * @swagger
@@ -266,7 +268,9 @@ router.get('/probation/:id', validateParams(idSchema), auditLog('READ', 'probati
  *       201:
  *         description: Probation tracking created
  *       400:
- *         description: Already exists or validation error
+ *         description: Validation error
+ *       409:
+ *         description: Probation tracking already exists for this employee
  *       404:
  *         description: Employee not found
  *       401:
@@ -274,7 +278,7 @@ router.get('/probation/:id', validateParams(idSchema), auditLog('READ', 'probati
  *       403:
  *         description: Admin access required
  */
-router.post('/probation/:id', checkPermission('onboarding.write'), validateParams(idSchema), validate(createProbationSchema), auditLog('CREATE', 'probation_tracking'), onboardingController.createProbationTracking);
+router.post('/probation/:id', checkPermission('onboarding.write'), validateParams(employeeIdSchema), validate(createProbationSchema), auditLog('CREATE', 'probation_tracking'), onboardingController.createProbationTracking);
 
 /**
  * @swagger
@@ -323,6 +327,6 @@ router.post('/probation/:id', checkPermission('onboarding.write'), validateParam
  *       403:
  *         description: Admin access required
  */
-router.patch('/probation/:id', checkPermission('onboarding.update'), validateParams(idSchema), validate(updateProbationSchema), auditLog('UPDATE', 'probation_tracking'), onboardingController.updateProbationStatus);
+router.patch('/probation/:id', checkPermission('onboarding.update'), validateParams(employeeIdSchema), validate(updateProbationSchema), auditLog('UPDATE', 'probation_tracking'), onboardingController.updateProbationStatus);
 
 module.exports = router;
