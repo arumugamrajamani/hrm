@@ -1,5 +1,4 @@
 const attenanceModel = require('../models/attendanceModel');
-const { errorResponse } = require('../utils/helpers');
 
 class AttendanceService {
     // =================== SHIFTS ===================
@@ -18,6 +17,22 @@ class AttendanceService {
     }
 
     async createShift(shiftData) {
+        const existingName = await attenanceModel.findShiftByName(shiftData.shift_name);
+        if (existingName) {
+            const error = new Error('A shift with this name already exists');
+            error.statusCode = 409;
+            throw error;
+        }
+
+        if (shiftData.shift_code) {
+            const existingCode = await attenanceModel.findShiftByCode(shiftData.shift_code);
+            if (existingCode) {
+                const error = new Error('A shift with this code already exists');
+                error.statusCode = 409;
+                throw error;
+            }
+        }
+
         const id = await attenanceModel.createShift(shiftData);
         return await attenanceModel.findShiftById(id);
     }
@@ -28,6 +43,24 @@ class AttendanceService {
             const error = new Error('Shift not found');
             error.statusCode = 404;
             throw error;
+        }
+
+        if (shiftData.shift_name) {
+            const existingName = await attenanceModel.findShiftByName(shiftData.shift_name, id);
+            if (existingName) {
+                const error = new Error('A shift with this name already exists');
+                error.statusCode = 409;
+                throw error;
+            }
+        }
+
+        if (shiftData.shift_code) {
+            const existingCode = await attenanceModel.findShiftByCode(shiftData.shift_code, id);
+            if (existingCode) {
+                const error = new Error('A shift with this code already exists');
+                error.statusCode = 409;
+                throw error;
+            }
         }
 
         const updated = await attenanceModel.updateShift(id, shiftData);
@@ -155,6 +188,20 @@ class AttendanceService {
     }
 
     async createLeaveType(leaveTypeData) {
+        const existingCode = await attenanceModel.findLeaveTypeByCode(leaveTypeData.leave_code);
+        if (existingCode) {
+            const error = new Error('A leave type with this code already exists');
+            error.statusCode = 409;
+            throw error;
+        }
+
+        const existingName = await attenanceModel.findLeaveTypeByName(leaveTypeData.leave_name);
+        if (existingName) {
+            const error = new Error('A leave type with this name already exists');
+            error.statusCode = 409;
+            throw error;
+        }
+
         const id = await attenanceModel.createLeaveType(leaveTypeData);
         return await attenanceModel.findLeaveTypeById(id);
     }
@@ -216,13 +263,47 @@ class AttendanceService {
     }
 
     async createLeaveRequest(requestData) {
-        const { employee_id } = requestData;
+        const { employee_id, leave_type_id, start_date, end_date, total_days } = requestData;
 
         const employee = await attenanceModel.findEmployeeById(employee_id);
         if (!employee) {
             const error = new Error('Employee not found');
             error.statusCode = 404;
             throw error;
+        }
+
+        const leaveType = await attenanceModel.findLeaveTypeById(leave_type_id);
+        if (!leaveType) {
+            const error = new Error('Leave type not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const overlapping = await attenanceModel.findOverlappingLeaveRequest(
+            employee_id,
+            start_date,
+            end_date,
+            ['pending', 'approved']
+        );
+        if (overlapping) {
+            const error = new Error('An overlapping leave request already exists');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (Number(leaveType.max_days_per_year) > 0) {
+            const balance = await attenanceModel.findLeaveBalance(employee_id, leave_type_id, start_date);
+            if (balance) {
+                const available = Number(balance.opening_balance || 0)
+                    + Number(balance.accrued || 0)
+                    - Number(balance.used || 0);
+
+                if (Number(total_days) > available) {
+                    const error = new Error('Insufficient leave balance');
+                    error.statusCode = 400;
+                    throw error;
+                }
+            }
         }
 
         const id = await attenanceModel.createLeaveRequest(requestData);
@@ -278,6 +359,19 @@ class AttendanceService {
     }
 
     async updateTimesheetStatus(id, { status, approved_by, rejection_reason }) {
+        const existing = await attenanceModel.findTimesheetById(id);
+        if (!existing) {
+            const error = new Error('Timesheet not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (existing.status === 'approved' || existing.status === 'rejected') {
+            const error = new Error('Timesheet has already been processed');
+            error.statusCode = 400;
+            throw error;
+        }
+
         const updated = await attenanceModel.updateTimesheetStatus(id, {
             status,
             approved_by,
@@ -285,8 +379,8 @@ class AttendanceService {
         });
 
         if (!updated) {
-            const error = new Error('Timesheet not found or no changes');
-            error.statusCode = 404;
+            const error = new Error('Failed to update timesheet status');
+            error.statusCode = 500;
             throw error;
         }
 

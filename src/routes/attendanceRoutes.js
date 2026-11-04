@@ -3,7 +3,7 @@ const router = express.Router();
 const attendanceController = require('../controllers/attendanceController');
 const { authMiddleware } = require('../middlewares/auth');
 const { auditLog } = require('../middlewares/auditLog');
-const { isAdmin, checkPermission } = require('../middlewares/roleCheck');
+const { checkPermission } = require('../middlewares/roleCheck');
 const { validate, validateParams, validateQuery } = require('../validations/joiValidator');
 const {
     createShiftSchema, updateShiftSchema,
@@ -91,6 +91,8 @@ router.get('/shifts/:id', validateParams(idSchema), auditLog('READ', 'shifts'), 
  *         description: Shift created successfully
  *       400:
  *         description: Validation error
+ *       409:
+ *         description: A shift with the same name or code already exists
  *       401:
  *         description: Unauthorized
  *       403:
@@ -121,8 +123,12 @@ router.post('/shifts', checkPermission('attendance.write'), validate(createShift
  *     responses:
  *       200:
  *         description: Shift updated successfully
+ *       400:
+ *         description: Validation error
  *       404:
  *         description: Shift not found
+ *       409:
+ *         description: A shift with the same name or code already exists
  *       401:
  *         description: Unauthorized
  *       403:
@@ -448,6 +454,8 @@ router.get('/leave-types/:id', validateParams(idSchema), auditLog('READ', 'leave
  *         description: Leave type created successfully
  *       400:
  *         description: Validation error
+ *       409:
+ *         description: A leave type with the same code or name already exists
  *       401:
  *         description: Unauthorized
  *       403:
@@ -483,7 +491,7 @@ router.post('/leave-types', checkPermission('attendance.write'), validate(create
  *       401:
  *         description: Unauthorized
  */
-router.get('/leave-balances/:id', validateParams(idSchema), auditLog('READ', 'leave_balances'), attendanceController.getLeaveBalances);
+router.get('/leave-balances/:id', validateParams(idSchema), validateQuery(querySchema), auditLog('READ', 'leave_balances'), attendanceController.getLeaveBalances);
 
 /**
  * @swagger
@@ -512,8 +520,10 @@ router.get('/leave-balances/:id', validateParams(idSchema), auditLog('READ', 'le
  *               year:
  *                 type: integer
  *     responses:
- *       201:
+ *       200:
  *         description: Leave balances initialized successfully
+ *       400:
+ *         description: Validation error
  *       404:
  *         description: Employee not found
  *       401:
@@ -609,7 +619,7 @@ router.get('/leave-requests/:id', validateParams(idSchema), auditLog('READ', 'le
  *       201:
  *         description: Leave request created successfully
  *       400:
- *         description: Validation error
+ *         description: Validation error, overlapping leave request, or insufficient leave balance
  *       404:
  *         description: Employee or leave type not found
  *       401:
@@ -648,6 +658,8 @@ router.post('/leave-requests', validate(createLeaveRequestSchema), auditLog('CRE
  *     responses:
  *       200:
  *         description: Leave request status updated successfully
+ *       400:
+ *         description: Validation error, request already processed, insufficient balance, or overlapping approved leave
  *       404:
  *         description: Leave request not found
  *       401:
@@ -760,6 +772,8 @@ router.post('/timesheets', validate(createTimesheetSchema), auditLog('CREATE', '
  *     responses:
  *       200:
  *         description: Timesheet status updated successfully
+ *       400:
+ *         description: Validation error or timesheet already processed
  *       404:
  *         description: Timesheet not found
  *       401:

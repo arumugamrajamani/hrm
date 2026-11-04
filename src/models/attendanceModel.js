@@ -1,5 +1,26 @@
 const { pool } = require('../config/database');
 
+const formatDateOnly = (value) => {
+    if (!value) return value;
+    if (typeof value === 'string') return value.slice(0, 10);
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) return value;
+
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const normalizeDateOnlyFields = (row, fields) => {
+    if (!row) return row;
+    for (const field of fields) {
+        if (row[field] !== undefined && row[field] !== null) {
+            row[field] = formatDateOnly(row[field]);
+        }
+    }
+    return row;
+};
+
 class AttendanceModel {
     // ==================== SHIFTS ===================
     static async findAllShifts({ page = 1, limit = 10, status = '' }) {
@@ -42,8 +63,41 @@ class AttendanceModel {
     }
 
     static async generateShiftCode() {
-        const [rows] = await pool.query('SELECT COUNT(*) as count FROM shifts');
-        return `SHF${String(rows[0].count + 1).padStart(3, '0')}`;
+        const [rows] = await pool.query("SELECT shift_code FROM shifts WHERE shift_code IS NOT NULL AND shift_code <> ''");
+        const usedCodes = new Set(rows.map((row) => row.shift_code));
+
+        let sequence = 1;
+        let code;
+        do {
+            code = `SHF${String(sequence).padStart(3, '0')}`;
+            sequence += 1;
+        } while (usedCodes.has(code));
+
+        return code;
+    }
+
+    static async findShiftByName(shiftName, excludeId = null) {
+        let query = 'SELECT id FROM shifts WHERE shift_name = ?';
+        const params = [shiftName];
+        if (excludeId) {
+            query += ' AND id <> ?';
+            params.push(excludeId);
+        }
+        query += ' LIMIT 1';
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async findShiftByCode(shiftCode, excludeId = null) {
+        let query = 'SELECT id FROM shifts WHERE shift_code = ?';
+        const params = [shiftCode];
+        if (excludeId) {
+            query += ' AND id <> ?';
+            params.push(excludeId);
+        }
+        query += ' LIMIT 1';
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
     }
 
     static async createShift(shiftData) {
@@ -75,6 +129,8 @@ class AttendanceModel {
 
         for (const field of allowedFields) {
             if (shiftData[field] !== undefined) {
+                // shift_code is NOT NULL. Treat null/empty as "keep the existing code".
+                if (field === 'shift_code' && !shiftData[field]) continue;
                 updates.push(`${field} = ?`);
                 params.push(shiftData[field]);
             }
@@ -118,7 +174,7 @@ class AttendanceModel {
         const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
 
         return {
-            holidays: rows,
+            holidays: rows.map((row) => normalizeDateOnlyFields(row, ['holiday_date'])),
             total: countResult[0].total,
             page, limit,
             totalPages: Math.ceil(countResult[0].total / limit)
@@ -133,7 +189,7 @@ class AttendanceModel {
             WHERE hc.id = ?
         `;
         const [rows] = await pool.query(query, [id]);
-        return rows[0] || null;
+        return rows[0] ? normalizeDateOnlyFields(rows[0], ['holiday_date']) : null;
     }
 
     static async createHoliday(holidayData) {
@@ -184,12 +240,12 @@ class AttendanceModel {
         }
 
         if (start_date) {
-            whereClause += ' AND ar.attendance_date >= ?';
+            whereClause += ' AND DATE(ar.attendance_date) >= DATE(?)';
             params.push(start_date);
         }
 
         if (end_date) {
-            whereClause += ' AND ar.attendance_date <= ?';
+            whereClause += ' AND DATE(ar.attendance_date) <= DATE(?)';
             params.push(end_date);
         }
 
@@ -224,7 +280,7 @@ class AttendanceModel {
         const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
 
         return {
-            attendance: rows,
+            attendance: rows.map((row) => normalizeDateOnlyFields(row, ['attendance_date'])),
             total: countResult[0].total,
             page, limit,
             totalPages: Math.ceil(countResult[0].total / limit)
@@ -246,7 +302,7 @@ class AttendanceModel {
             WHERE ar.id = ?
         `;
         const [rows] = await pool.query(query, [id]);
-        return rows[0] || null;
+        return rows[0] ? normalizeDateOnlyFields(rows[0], ['attendance_date']) : null;
     }
 
     static async markAttendance(attendanceData) {
@@ -333,6 +389,30 @@ class AttendanceModel {
         return rows[0] || null;
     }
 
+    static async findLeaveTypeByName(leaveName, excludeId = null) {
+        let query = 'SELECT id FROM leave_types WHERE leave_name = ?';
+        const params = [leaveName];
+        if (excludeId) {
+            query += ' AND id <> ?';
+            params.push(excludeId);
+        }
+        query += ' LIMIT 1';
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
+    static async findLeaveTypeByCode(leaveCode, excludeId = null) {
+        let query = 'SELECT id FROM leave_types WHERE leave_code = ?';
+        const params = [leaveCode];
+        if (excludeId) {
+            query += ' AND id <> ?';
+            params.push(excludeId);
+        }
+        query += ' LIMIT 1';
+        const [rows] = await pool.query(query, params);
+        return rows[0] || null;
+    }
+
     static async createLeaveType(leaveTypeData) {
         const { leave_code, leave_name, description, max_days_per_year, carry_forward, encashable, requires_approval, min_days_notice, status, created_by } = leaveTypeData;
         
@@ -388,6 +468,16 @@ class AttendanceModel {
         return true;
     }
 
+    static async findLeaveBalance(employee_id, leave_type_id, start_date) {
+        const query = `
+            SELECT * FROM leave_balances
+            WHERE employee_id = ? AND leave_type_id = ? AND year = YEAR(?)
+            LIMIT 1
+        `;
+        const [rows] = await pool.query(query, [employee_id, leave_type_id, start_date]);
+        return rows[0] || null;
+    }
+
     // ==================== LEAVE REQUESTS ===================
     static async findAllLeaveRequests({ page = 1, limit = 10, employee_id = null, status = '', start_date = null, end_date = null }) {
         const offset = (page - 1) * limit;
@@ -405,12 +495,12 @@ class AttendanceModel {
         }
 
         if (start_date) {
-            whereClause += ' AND lr.start_date >= ?';
+            whereClause += ' AND DATE(lr.start_date) >= DATE(?)';
             params.push(start_date);
         }
 
         if (end_date) {
-            whereClause += ' AND lr.end_date <= ?';
+            whereClause += ' AND DATE(lr.end_date) <= DATE(?)';
             params.push(end_date);
         }
 
@@ -441,7 +531,7 @@ class AttendanceModel {
         const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
 
         return {
-            leave_requests: rows,
+            leave_requests: rows.map((row) => normalizeDateOnlyFields(row, ['start_date', 'end_date'])),
             total: countResult[0].total,
             page, limit,
             totalPages: Math.ceil(countResult[0].total / limit)
@@ -464,6 +554,27 @@ class AttendanceModel {
             WHERE lr.id = ?
         `;
         const [rows] = await pool.query(query, [id]);
+        return rows[0] ? normalizeDateOnlyFields(rows[0], ['start_date', 'end_date']) : null;
+    }
+
+    static async findOverlappingLeaveRequest(employee_id, start_date, end_date, statuses = ['pending', 'approved'], excludeId = null) {
+        const placeholders = statuses.map(() => '?').join(', ');
+        let query = `
+            SELECT id FROM leave_requests
+            WHERE employee_id = ?
+              AND status IN (${placeholders})
+              AND DATE(start_date) <= DATE(?)
+              AND DATE(end_date) >= DATE(?)
+        `;
+        const params = [employee_id, ...statuses, end_date, start_date];
+
+        if (excludeId) {
+            query += ' AND id <> ?';
+            params.push(excludeId);
+        }
+
+        query += ' LIMIT 1';
+        const [rows] = await pool.query(query, params);
         return rows[0] || null;
     }
 
@@ -491,26 +602,114 @@ class AttendanceModel {
     }
 
     static async updateLeaveRequestStatus(id, { status, approved_by, rejection_reason }) {
-        const query = `
-            UPDATE leave_requests 
-            SET status = ?, approved_by = ?, approved_at = NOW(), rejection_reason = ?, updated_at = NOW()
-            WHERE id = ?
-        `;
-        
-        const [result] = await pool.query(query, [status, approved_by, rejection_reason, id]);
-        
-        if (result.affectedRows > 0 && status === 'approved') {
-            const [request] = await pool.query('SELECT * FROM leave_requests WHERE id = ?', [id]);
-            if (request.length > 0) {
-                await pool.query(`
-                    UPDATE leave_balances 
-                    SET used = used + ? 
-                    WHERE employee_id = ? AND leave_type_id = ? AND year = YEAR(?)
-                `, [request[0].total_days, request[0].employee_id, request[0].leave_type_id, request[0].start_date]);
+        const conn = await pool.getConnection();
+
+        try {
+            await conn.beginTransaction();
+
+            const [requestRows] = await conn.query(
+                'SELECT * FROM leave_requests WHERE id = ? FOR UPDATE',
+                [id]
+            );
+            const request = requestRows[0];
+
+            if (!request) {
+                const error = new Error('Leave request not found');
+                error.statusCode = 404;
+                throw error;
             }
+
+            if (request.status !== 'pending') {
+                const error = new Error('Leave request has already been processed');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            if (status === 'approved') {
+                const [overlapRows] = await conn.query(`
+                    SELECT id FROM leave_requests
+                    WHERE employee_id = ? AND id <> ? AND status = 'approved'
+                      AND DATE(start_date) <= DATE(?) AND DATE(end_date) >= DATE(?)
+                    LIMIT 1
+                    FOR UPDATE
+                `, [request.employee_id, id, request.end_date, request.start_date]);
+
+                if (overlapRows.length > 0) {
+                    const error = new Error('Leave request overlaps an approved leave request');
+                    error.statusCode = 400;
+                    throw error;
+                }
+
+                const [leaveTypeRows] = await conn.query(
+                    'SELECT max_days_per_year FROM leave_types WHERE id = ?',
+                    [request.leave_type_id]
+                );
+                if (leaveTypeRows.length === 0) {
+                    const error = new Error('Leave type not found');
+                    error.statusCode = 404;
+                    throw error;
+                }
+
+                const maxDays = Number(leaveTypeRows[0].max_days_per_year || 0);
+                const [balanceRows] = await conn.query(`
+                    SELECT * FROM leave_balances
+                    WHERE employee_id = ? AND leave_type_id = ? AND year = YEAR(?)
+                    FOR UPDATE
+                `, [request.employee_id, request.leave_type_id, request.start_date]);
+
+                if (balanceRows.length === 0) {
+                    if (maxDays > 0) {
+                        const error = new Error('Leave balance not initialized for this leave type and year');
+                        error.statusCode = 400;
+                        throw error;
+                    }
+
+                    // Unlimited leave types (max_days_per_year = 0) still keep a usage ledger.
+                    await conn.query(`
+                        INSERT INTO leave_balances
+                        (employee_id, leave_type_id, year, opening_balance, accrued, used)
+                        VALUES (?, ?, YEAR(?), 0, 0, ?)
+                        ON DUPLICATE KEY UPDATE used = used + VALUES(used)
+                    `, [request.employee_id, request.leave_type_id, request.start_date, request.total_days]);
+                } else {
+                    const balance = balanceRows[0];
+                    if (maxDays > 0) {
+                        const available = Number(balance.opening_balance || 0)
+                            + Number(balance.accrued || 0)
+                            - Number(balance.used || 0);
+
+                        if (Number(request.total_days) > available) {
+                            const error = new Error('Insufficient leave balance');
+                            error.statusCode = 400;
+                            throw error;
+                        }
+                    }
+
+                    await conn.query(
+                        'UPDATE leave_balances SET used = used + ? WHERE id = ?',
+                        [request.total_days, balance.id]
+                    );
+                }
+            }
+
+            const approvedAt = status === 'approved' ? new Date() : null;
+            const approvedBy = status === 'approved' ? approved_by : null;
+            const rejectionReason = status === 'rejected' ? rejection_reason : null;
+
+            const [result] = await conn.query(`
+                UPDATE leave_requests
+                SET status = ?, approved_by = ?, approved_at = ?, rejection_reason = ?, updated_at = NOW()
+                WHERE id = ?
+            `, [status, approvedBy, approvedAt, rejectionReason, id]);
+
+            await conn.commit();
+            return result.affectedRows > 0;
+        } catch (error) {
+            await conn.rollback();
+            throw error;
+        } finally {
+            conn.release();
         }
-        
-        return result.affectedRows > 0;
     }
 
     // ==================== TIMESHEETS ===================
@@ -525,12 +724,12 @@ class AttendanceModel {
         }
 
         if (start_date) {
-            whereClause += ' AND t.timesheet_date >= ?';
+            whereClause += ' AND DATE(t.timesheet_date) >= DATE(?)';
             params.push(start_date);
         }
 
         if (end_date) {
-            whereClause += ' AND t.timesheet_date <= ?';
+            whereClause += ' AND DATE(t.timesheet_date) <= DATE(?)';
             params.push(end_date);
         }
 
@@ -563,7 +762,7 @@ class AttendanceModel {
         const [rows] = await pool.query(dataQuery, [...params, limit, offset]);
 
         return {
-            timesheets: rows,
+            timesheets: rows.map((row) => normalizeDateOnlyFields(row, ['timesheet_date'])),
             total: countResult[0].total,
             page, limit,
             totalPages: Math.ceil(countResult[0].total / limit)
@@ -586,14 +785,24 @@ class AttendanceModel {
         return result.insertId;
     }
 
+    static async findTimesheetById(id) {
+        const query = 'SELECT * FROM timesheets WHERE id = ?';
+        const [rows] = await pool.query(query, [id]);
+        return rows[0] ? normalizeDateOnlyFields(rows[0], ['timesheet_date']) : null;
+    }
+
     static async updateTimesheetStatus(id, { status, approved_by, rejection_reason }) {
+        const approvedAt = status === 'approved' ? new Date() : null;
+        const approvedBy = status === 'approved' ? approved_by : null;
+        const rejectionReason = status === 'rejected' ? rejection_reason : null;
+
         const query = `
             UPDATE timesheets 
-            SET status = ?, approved_by = ?, approved_at = NOW(), rejection_reason = ?, updated_at = NOW()
+            SET status = ?, approved_by = ?, approved_at = ?, rejection_reason = ?, updated_at = NOW()
             WHERE id = ?
         `;
         
-        const [result] = await pool.query(query, [status, approved_by, rejection_reason, id]);
+        const [result] = await pool.query(query, [status, approvedBy, approvedAt, rejectionReason, id]);
         return result.affectedRows > 0;
     }
 }

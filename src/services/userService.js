@@ -6,6 +6,12 @@ const { getWelcomeEmailTemplate } = require('../utils/emailTemplates');
 const { sanitizeUser } = require('../utils/helpers');
 const config = require('../config');
 
+const conflictError = (message) => {
+    const error = new Error(message);
+    error.statusCode = 409;
+    return error;
+};
+
 class UserService {
     async getAllUsers(params) {
         return await userRepository.findAll(params);
@@ -23,15 +29,15 @@ class UserService {
         const { username, email, mobile, password, role_id } = userData;
 
         if (await userRepository.emailExists(email)) {
-            throw new Error('Email already exists');
+            throw conflictError('Email already exists');
         }
 
         if (await userRepository.usernameExists(username)) {
-            throw new Error('Username already exists');
+            throw conflictError('Username already exists');
         }
 
         if (mobile && await userRepository.mobileExists(mobile)) {
-            throw new Error('Mobile number already exists');
+            throw conflictError('Mobile number already exists');
         }
 
         const role = await userRepository.getRoleById(role_id);
@@ -67,15 +73,15 @@ class UserService {
         const { username, email, mobile, role_id } = userData;
 
         if (await userRepository.emailExists(email)) {
-            throw new Error('Email already exists');
+            throw conflictError('Email already exists');
         }
 
         if (await userRepository.usernameExists(username)) {
-            throw new Error('Username already exists');
+            throw conflictError('Username already exists');
         }
 
         if (mobile && await userRepository.mobileExists(mobile)) {
-            throw new Error('Mobile number already exists');
+            throw conflictError('Mobile number already exists');
         }
 
         const role = await userRepository.getRoleById(role_id);
@@ -116,19 +122,19 @@ class UserService {
 
         if (userData.email && userData.email !== user.email) {
             if (await userRepository.emailExists(userData.email, id)) {
-                throw new Error('Email already exists');
+                throw conflictError('Email already exists');
             }
         }
 
         if (userData.username && userData.username !== user.username) {
             if (await userRepository.usernameExists(userData.username, id)) {
-                throw new Error('Username already exists');
+                throw conflictError('Username already exists');
             }
         }
 
         if (userData.mobile && userData.mobile !== user.mobile) {
             if (await userRepository.mobileExists(userData.mobile, id)) {
-                throw new Error('Mobile number already exists');
+                throw conflictError('Mobile number already exists');
             }
         }
 

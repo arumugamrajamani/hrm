@@ -172,7 +172,7 @@ describe('User Endpoints', () => {
             expect(response.status).toBe(200);
             expect(response.body.success).toBe(true);
             expect(response.body.data).toHaveLength(2);
-            expect(response.body.pagination).toBeDefined();
+            expect(response.body.meta.pagination).toBeDefined();
         });
 
         it('should validate pagination parameters', async () => {

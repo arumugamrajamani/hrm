@@ -117,14 +117,6 @@ const errorHandler = (err, req, res, _next) => {
         });
     }
 
-    if (err.message && (err.message.includes('already exists') || err.message.includes('Duplicate'))) {
-        return res.status(409).json({
-            success: false,
-            message: 'A record with this information already exists.',
-            code: 'DUPLICATE'
-        });
-    }
-
     if (err.message && err.message.includes('CORS')) {
         return res.status(403).json({
             success: false,
@@ -141,12 +133,21 @@ const errorHandler = (err, req, res, _next) => {
         });
     }
 
+    // Explicit status codes from services take precedence over message-based heuristics.
     if (err.statusCode || err.status) {
         const statusCode = err.statusCode || err.status;
         return res.status(statusCode).json({
             success: false,
             message: err.message || HTTP_STATUS_MESSAGES[statusCode],
             code: err.code || 'ERROR'
+        });
+    }
+
+    if (err.message && (err.message.includes('already exists') || err.message.includes('Duplicate'))) {
+        return res.status(409).json({
+            success: false,
+            message: 'A record with this information already exists.',
+            code: 'DUPLICATE'
         });
     }
 

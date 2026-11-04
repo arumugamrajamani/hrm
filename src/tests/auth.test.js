@@ -135,8 +135,7 @@ jest.mock('../middlewares/auth', () => ({
 
 const app = require('../app');
 
-const { pool } = require('../config/database');
-const { UserModel, LoginAttemptModel, PasswordHistoryModel, PasswordResetTokenModel, RefreshTokenModel } = require('../models');
+const { UserModel, LoginAttemptModel, PasswordResetTokenModel, RefreshTokenModel } = require('../models');
 const bcrypt = require('bcrypt');
 
 describe('Auth Endpoints', () => {
@@ -250,7 +249,12 @@ describe('Auth Endpoints', () => {
 
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);
-            expect(['Invalid credentials', 'User not found', 'Invalid email or password']).toContain(response.body.message);
+            expect([
+                'Invalid credentials',
+                'User not found',
+                'Invalid email or password',
+                'Invalid email or password. Please check your credentials and try again.'
+            ]).toContain(response.body.message);
         });
 
         it('should return error for invalid password', async () => {

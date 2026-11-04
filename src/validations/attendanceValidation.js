@@ -116,6 +116,11 @@ const markAttendanceSchema = Joi.object({
     late_minutes: Joi.number().integer().min(0).default(0),
     is_early_departure: Joi.boolean().default(false),
     early_departure_minutes: Joi.number().integer().min(0).default(0)
+}).custom((value, helpers) => {
+    if (value.check_in && value.check_out && value.check_out < value.check_in) {
+        return helpers.message('Check-out must be after check-in');
+    }
+    return value;
 });
 
 const regularizeAttendanceSchema = Joi.object({
@@ -212,9 +217,15 @@ const updateLeaveRequestStatusSchema = Joi.object({
         'any.only': 'Status must be either approved or rejected',
         'any.required': 'Status is required'
     }),
-    rejection_reason: Joi.string().trim().max(500).allow('', null).when('status', {
+    rejection_reason: Joi.when('status', {
         is: 'rejected',
-        then: Joi.required().messages({ 'any.required': 'Rejection reason is required when rejecting' })
+        then: Joi.string().trim().min(2).max(500).required().messages({
+            'string.empty': 'Rejection reason is required when rejecting',
+            'string.min': 'Rejection reason must be at least 2 characters',
+            'string.max': 'Rejection reason must not exceed 500 characters',
+            'any.required': 'Rejection reason is required when rejecting'
+        }),
+        otherwise: Joi.string().trim().max(500).allow('', null)
     })
 });
 
@@ -250,7 +261,16 @@ const updateTimesheetStatusSchema = Joi.object({
         'any.only': 'Status must be submitted, approved, or rejected',
         'any.required': 'Status is required'
     }),
-    rejection_reason: Joi.string().trim().max(500).allow('', null)
+    rejection_reason: Joi.when('status', {
+        is: 'rejected',
+        then: Joi.string().trim().min(2).max(500).required().messages({
+            'string.empty': 'Rejection reason is required when rejecting',
+            'string.min': 'Rejection reason must be at least 2 characters',
+            'string.max': 'Rejection reason must not exceed 500 characters',
+            'any.required': 'Rejection reason is required when rejecting'
+        }),
+        otherwise: Joi.string().trim().max(500).allow('', null)
+    })
 });
 
 // ==================== SHARED ====================
